@@ -5,8 +5,8 @@ import Link from "next/link";
 import {
   AlertCircle,
   Bell,
-  PanelLeftClose,
-  PanelLeftOpen,
+  Menu,
+  X,
 } from "lucide-react";
 
 import {
@@ -93,16 +93,16 @@ export default function AppHeader({
             color="#52606B"
             flexShrink={0}
             onClick={onToggleSidebar}
-            display={{ base: "none", lg: "inline-flex" }}
+            display={{ base: "inline-flex", lg: "inline-flex" }}
             _hover={{
               bg: "#E9EEF3",
               color: "#2F507F",
             }}
           >
             {sidebarOpen ? (
-              <PanelLeftClose size={19} />
+              <X size={19} />
             ) : (
-              <PanelLeftOpen size={19} />
+              <Menu size={19} />
             )}
           </IconButton>
 

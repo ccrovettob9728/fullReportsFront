@@ -78,12 +78,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <AppSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onToggle={() => setSidebarOpen((open) => !open)}
+        onToggle={() => setSidebarOpen(false)}
       />
 
       <Box
         minH="100vh"
-        ml={{ base: "64px", lg: sidebarOpen ? "250px" : 0 }}
+        ml={{ base: sidebarOpen ? "220px" : 0, lg: sidebarOpen ? "220px" : 0 }}
         transition="margin-left .25s ease"
       >
         <AppHeader

@@ -80,7 +80,7 @@ export default function AppSidebar({
       {open && (
         <Box
           display={{
-            base: "none",
+            base: open ? "block" : "none",
             lg: "none",
           }}
           position="fixed"
@@ -99,25 +99,25 @@ export default function AppSidebar({
           lg: "fixed",
         }}
         left={{
-          base: "0",
-          lg: open ? "0" : "-250px",
+          base: open ? "0" : "-220px",
+          lg: open ? "0" : "-220px",
         }}
         top="0"
         bottom="0"
         zIndex={999}
-        w={{ base: "64px", lg: "250px" }}
+        w="220px"
         flexShrink={0}
         bg="#F1F4F7"
         transition="left .25s ease"
         display={{
-          base: "block",
+          base: open ? "block" : "none",
           lg: open ? "block" : "none",
         }}
       >
         {/* HEADER SIDEBAR */}
         <Flex
           h="64px"
-          px={{ base: 2, lg: 5 }}
+          px={5}
           align="center"
           justify="space-between"
         >
@@ -126,11 +126,11 @@ export default function AppSidebar({
             gap={3}
           >
             <Box
-              w={{ base: "40px", lg: "184px" }}
-              h={{ base: "40px", lg: "42px" }}
+              w="174px"
+              h="42px"
               borderRadius="10px"
               bg="#263B54"
-              display={{ base: "none", lg: "flex" }}
+              display="flex"
               alignItems="center"
               justifyContent="center"
               overflow="hidden"
@@ -138,7 +138,7 @@ export default function AppSidebar({
               <Image
                 src="/logo.png"
                 alt="FullReports"
-                width={174}
+                width={164}
                 height={34}
                 priority
                 style={{ objectFit: "contain" }}
@@ -149,12 +149,12 @@ export default function AppSidebar({
 
         {/* MENU */}
         <Box
-          px={{ base: 2, lg: 3 }}
-          py={{ base: 3, lg: 5 }}
+          px={3}
+          py={5}
           pb="80px"
         >
           <Text
-            display={{ base: "none", lg: "block" }}
+            display="block"
             fontSize="10px"
             fontWeight="700"
             color="#8793A0"
@@ -190,10 +190,10 @@ export default function AppSidebar({
                   <Flex
                     align="center"
                     gap={3}
-                    px={{ base: 0, lg: 3 }}
+                    px={3}
                     py={2.5}
                     borderRadius="8px"
-                    justifyContent={{ base: "center", lg: "flex-start" }}
+                    justifyContent="flex-start"
                     title={item.label}
                     bg={
                       active
@@ -217,7 +217,7 @@ export default function AppSidebar({
                     />
 
                     <Text
-                      display={{ base: "none", lg: "block" }}
+                      display="block"
                       fontSize="sm"
                       fontWeight={
                         active
@@ -236,7 +236,7 @@ export default function AppSidebar({
 
         {/* BOTÓN PARA CERRAR */}
         <Box
-          display={{ base: "none", lg: "block" }}
+          display="block"
           position="absolute"
           bottom="20px"
           right="-14px"
