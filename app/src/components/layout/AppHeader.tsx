@@ -93,6 +93,7 @@ export default function AppHeader({
             color="#52606B"
             flexShrink={0}
             onClick={onToggleSidebar}
+            display={{ base: "none", lg: "inline-flex" }}
             _hover={{
               bg: "#E9EEF3",
               color: "#2F507F",

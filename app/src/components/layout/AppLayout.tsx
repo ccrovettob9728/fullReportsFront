@@ -83,7 +83,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
       <Box
         minH="100vh"
-        ml={{ base: 0, lg: sidebarOpen ? "250px" : 0 }}
+        ml={{ base: "64px", lg: sidebarOpen ? "250px" : 0 }}
         transition="margin-left .25s ease"
       >
         <AppHeader

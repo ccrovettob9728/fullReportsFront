@@ -76,11 +76,11 @@ export default function AppSidebar({
 
   return (
     <>
-      {/* Overlay solamente en mobile */}
+      {/* Overlay solamente en mobile cuando se usa como panel */}
       {open && (
         <Box
           display={{
-            base: "block",
+            base: "none",
             lg: "none",
           }}
           position="fixed"
@@ -99,13 +99,13 @@ export default function AppSidebar({
           lg: "fixed",
         }}
         left={{
-          base: open ? "0" : "-260px",
+          base: "0",
           lg: open ? "0" : "-250px",
         }}
         top="0"
         bottom="0"
         zIndex={999}
-        w="250px"
+        w={{ base: "64px", lg: "250px" }}
         flexShrink={0}
         bg="#F1F4F7"
         transition="left .25s ease"
@@ -117,7 +117,7 @@ export default function AppSidebar({
         {/* HEADER SIDEBAR */}
         <Flex
           h="64px"
-          px={5}
+          px={{ base: 2, lg: 5 }}
           align="center"
           justify="space-between"
         >
@@ -126,11 +126,11 @@ export default function AppSidebar({
             gap={3}
           >
             <Box
-              w="184px"
-              h="42px"
+              w={{ base: "40px", lg: "184px" }}
+              h={{ base: "40px", lg: "42px" }}
               borderRadius="10px"
               bg="#263B54"
-              display="flex"
+              display={{ base: "none", lg: "flex" }}
               alignItems="center"
               justifyContent="center"
               overflow="hidden"
@@ -149,11 +149,12 @@ export default function AppSidebar({
 
         {/* MENU */}
         <Box
-          px={3}
-          py={5}
+          px={{ base: 2, lg: 3 }}
+          py={{ base: 3, lg: 5 }}
           pb="80px"
         >
           <Text
+            display={{ base: "none", lg: "block" }}
             fontSize="10px"
             fontWeight="700"
             color="#8793A0"
@@ -189,9 +190,11 @@ export default function AppSidebar({
                   <Flex
                     align="center"
                     gap={3}
-                    px={3}
+                    px={{ base: 0, lg: 3 }}
                     py={2.5}
                     borderRadius="8px"
+                    justifyContent={{ base: "center", lg: "flex-start" }}
+                    title={item.label}
                     bg={
                       active
                         ? "#DDE7F0"
@@ -214,6 +217,7 @@ export default function AppSidebar({
                     />
 
                     <Text
+                      display={{ base: "none", lg: "block" }}
                       fontSize="sm"
                       fontWeight={
                         active
@@ -232,6 +236,7 @@ export default function AppSidebar({
 
         {/* BOTÓN PARA CERRAR */}
         <Box
+          display={{ base: "none", lg: "block" }}
           position="absolute"
           bottom="20px"
           right="-14px"
