@@ -67,6 +67,7 @@ export default function ObrasPage() {
   const persistProjects = (nextProjects: Project[]) => {
     setProjects(nextProjects);
     window.localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(nextProjects));
+    window.dispatchEvent(new Event("fullreports-projects-updated"));
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {

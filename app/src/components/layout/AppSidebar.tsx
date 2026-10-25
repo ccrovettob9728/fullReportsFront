@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import {
   BarChart3,
@@ -13,6 +14,8 @@ import {
   Home,
   Milestone,
   Settings,
+  CalendarDays,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import {
@@ -46,6 +49,16 @@ const menuItems = [
     icon: ClipboardList,
   },
   {
+    label: "Programa de obra",
+    href: "/programa",
+    icon: FileSpreadsheet,
+  },
+  {
+    label: "Asistencia",
+    href: "/asistencia",
+    icon: CalendarDays,
+  },
+  {
     label: "Reportes",
     href: "/reportes",
     icon: FileText,
@@ -73,6 +86,24 @@ export default function AppSidebar({
   onToggle,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { user?: { role: string } | null }) => setRole(data.user?.role ?? "trabajador"))
+      .catch(() => setRole("trabajador"));
+  }, []);
+
+  const visibleItems = menuItems.filter((item) => {
+    if (role === "admin" || role === "superadmin") return true;
+    if (item.href === "/programa") return false;
+    if (item.href === "/asistencia") return ["relaciones-laborales", "relaciones_laborales", "encargado-relaciones-laborales", "rrhh"].includes(role ?? "");
+    if (item.href === "/configuracion") return false;
+    if (item.href === "/reportes") return true;
+    if (role === "supervisor") return true;
+    return ["/dashboard", "/tareas"].includes(item.href);
+  });
 
   return (
     <>
@@ -170,7 +201,7 @@ export default function AppSidebar({
             align="stretch"
             gap={1}
           >
-            {menuItems.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
 
               const active =

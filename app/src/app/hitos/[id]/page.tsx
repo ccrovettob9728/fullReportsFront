@@ -30,18 +30,8 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
-
-type TaskStatus = "todo" | "in-progress" | "done";
-
-type Task = {
-  id: number;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  imageUrl?: string;
-  documentUrl?: string;
-  documentName?: string;
-};
+import type { ProjectTask, TaskStatus } from "../../../data/tasks";
+import { useProjectTasks } from "../../../data/workspace";
 
 const taskColumns: Array<{
   status: TaskStatus;
@@ -60,33 +50,6 @@ const milestoneNames: Record<string, string> = {
   "3": "Fundaciones terminadas",
 };
 
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    title: "Reunir documentación requerida",
-    description: "Compilar certificados y planos para la presentación.",
-    status: "todo",
-    imageUrl: "/logo.png",
-  },
-  {
-    id: 2,
-    title: "Revisar antecedentes con el supervisor",
-    description: "Validar que el expediente esté completo.",
-    status: "in-progress",
-    documentUrl: "/file.svg",
-    documentName: "antecedentes.svg",
-  },
-  {
-    id: 3,
-    title: "Enviar solicitud municipal",
-    description: "Solicitud enviada y registrada correctamente.",
-    status: "done",
-    imageUrl: "/logo.png",
-    documentUrl: "/file.svg",
-    documentName: "solicitud.svg",
-  },
-];
-
 const emptyForm = {
   title: "",
   description: "",
@@ -102,9 +65,10 @@ export default function MilestoneDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const milestoneName = milestoneNames[id] ?? "Hito del proyecto";
+  const { tasks: allTasks, projects, selectedProjectId, saveTasks } = useProjectTasks();
+  const tasks = allTasks.filter((task) => task.projectId === selectedProjectId && task.milestoneId === id);
+  const milestoneName = tasks[0]?.milestoneName ?? milestoneNames[id] ?? "Hito del proyecto";
   const router = useRouter();
-  const [tasks, setTasks] = useState(initialTasks);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -115,16 +79,22 @@ export default function MilestoneDetailPage({
     if (!form.title.trim()) return;
 
     if (editingId !== null) {
-      setTasks((current) =>
-        current.map((task) =>
-          task.id === editingId ? { ...task, ...form, title: form.title.trim() } : task,
-        ),
-      );
+      saveTasks(allTasks.map((task) => task.id === editingId ? { ...task, ...form, title: form.title.trim() } : task));
     } else {
-      setTasks((current) => [
-        ...current,
-        { id: Date.now(), ...form, title: form.title.trim() },
-      ]);
+      const now = Math.max(0, ...allTasks.map((task) => task.id)) + 1;
+      const newTask: ProjectTask = {
+        id: now,
+        projectId: selectedProjectId,
+        ...form,
+        title: form.title.trim(),
+        reviewStatus: "pending",
+        milestoneId: id,
+        milestoneName,
+        taskType: "scheduled",
+        budgetedManHours: 0,
+        activityLog: [],
+      };
+      saveTasks([...allTasks, newTask]);
     }
 
     setForm(emptyForm);
@@ -132,7 +102,7 @@ export default function MilestoneDetailPage({
     setFormOpen(false);
   };
 
-  const editTask = (task: Task) => {
+  const editTask = (task: ProjectTask) => {
     setEditingId(task.id);
     setForm({
       title: task.title,
@@ -148,16 +118,12 @@ export default function MilestoneDetailPage({
   const moveTask = (status: TaskStatus) => {
     if (draggedTaskId === null) return;
 
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === draggedTaskId ? { ...task, status } : task,
-      ),
-    );
+    saveTasks(allTasks.map((task) => task.id === draggedTaskId ? { ...task, status } : task));
     setDraggedTaskId(null);
   };
 
   const deleteTask = (id: number) => {
-    setTasks((current) => current.filter((task) => task.id !== id));
+    saveTasks(allTasks.filter((task) => task.id !== id));
     if (editingId === id) {
       setEditingId(null);
       setForm(emptyForm);
@@ -181,7 +147,7 @@ export default function MilestoneDetailPage({
                 <Text fontSize="sm" fontWeight="600">Volver a hitos</Text>
               </Flex>
             </Link>
-            <Text fontSize="sm" color="#7A8694" mb={1}>Proyecto Condominio La Serena</Text>
+            <Text fontSize="sm" color="#7A8694" mb={1}>{projects.find((project) => project.id === selectedProjectId)?.name ?? "Obra seleccionada"}</Text>
             <Heading size="lg" color="#263238">{milestoneName}</Heading>
             <Text mt={1} fontSize="sm" color="#7A8694">Tareas asociadas a este hito.</Text>
           </Box>

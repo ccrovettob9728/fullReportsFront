@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
   Bell,
+  LogOut,
   Menu,
   X,
 } from "lucide-react";
@@ -54,11 +55,28 @@ export default function AppHeader({
   projects,
   onProjectChange,
 }: AppHeaderProps) {
+  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [readNotifications, setReadNotifications] = useState<number[]>([]);
   const unreadCount = notifications.filter(
     (notification) => notification.unread && !readNotifications.includes(notification.id),
   ).length;
+
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { user?: { name: string; email: string; role: string } | null }) => {
+        setUser(data.user ?? null);
+      })
+      .catch(() => setUser(null));
+  }, []);
+
+  const roleLabels: Record<string, string> = {
+    admin: "Administrador",
+    superadmin: "Superadministrador",
+    supervisor: "Supervisor",
+    trabajador: "Trabajador",
+  };
 
   return (
     <Box
@@ -284,7 +302,7 @@ export default function AppHeader({
                 fontWeight="700"
                 color="#2F507F"
               >
-                A
+                {(user?.name ?? "U").slice(0, 1).toUpperCase()}
               </Text>
             </Box>
 
@@ -297,9 +315,21 @@ export default function AppHeader({
               fontWeight="600"
               color="#36434F"
             >
-              Administrador
+              {user ? roleLabels[user.role] ?? user.role : "Usuario"}
             </Text>
           </Flex>
+
+          <IconButton
+            asChild
+            aria-label="Cerrar sesión"
+            title={user ? `Cerrar sesión de ${user.email}` : "Cerrar sesión"}
+            variant="ghost"
+            size="sm"
+            color="#6F7C89"
+            _hover={{ bg: "#FBEAEC", color: "#B42318" }}
+          >
+            <Link href="/api/auth/logout"><LogOut size={17} /></Link>
+          </IconButton>
         </Flex>
       </Flex>
     </Box>

@@ -10,12 +10,12 @@ import {
   Field,
   Flex,
   Heading,
-  Input,
   SimpleGrid,
   Text,
 } from "@chakra-ui/react";
 import { initialProjects } from "../../data/projects";
-import { initialProjectTasks, taskStatusColors, taskStatusLabels, type TaskStatus } from "../../data/tasks";
+import { taskStatusColors, taskStatusLabels, type TaskStatus } from "../../data/tasks";
+import { selectWorkspaceProject, useProjectTasks } from "../../data/workspace";
 
  type ReportPeriod = "daily" | "weekly" | "monthly" | "annual";
 type ReportScope = "project" | "milestone" | "task";
@@ -33,8 +33,6 @@ const scopeOptions: Array<{ value: ReportScope; label: string }> = [
   { value: "task", label: "Tarea" },
 ];
 
-const fallbackProject = initialProjects[0];
-
 function getPeriodLabel(period: ReportPeriod) {
   return periodOptions.find((option) => option.value === period)?.label ?? "Mensual";
 }
@@ -43,16 +41,15 @@ function getScopeLabel(scope: ReportScope) {
   return scopeOptions.find((option) => option.value === scope)?.label ?? "Obra completa";
 }
 
-function drawPieChart(): string {
+function drawPieChart(values: number[]): string {
   const canvas = document.createElement("canvas");
   canvas.width = 360;
   canvas.height = 360;
   const context = canvas.getContext("2d");
   if (!context) return "";
 
-  const values = [2, 2, 1];
   const colors = ["#B18419", "#2F507F", "#2E9B6F"];
-  const total = values.reduce((sum, value) => sum + value, 0);
+  const total = values.reduce((sum, value) => sum + value, 0) || 1;
   let startAngle = -Math.PI / 2;
 
   values.forEach((value, index) => {
@@ -74,24 +71,32 @@ function drawPieChart(): string {
 }
 
 export default function ReportsPage() {
+  const { tasks, projects, selectedProjectId } = useProjectTasks();
   const [period, setPeriod] = useState<ReportPeriod>("monthly");
   const [scope, setScope] = useState<ReportScope>("project");
   const [milestoneId, setMilestoneId] = useState("1");
   const [taskId, setTaskId] = useState("1");
   const [reportGenerated, setReportGenerated] = useState(false);
 
-  const selectedMilestone = initialProjectTasks.find((task) => task.milestoneId === milestoneId)?.milestoneName ?? "Permisos municipales aprobados";
-  const selectedTask = initialProjectTasks.find((task) => task.id === Number(taskId)) ?? initialProjectTasks[0];
-  const selectedSubject = scope === "project" ? fallbackProject.name : scope === "milestone" ? selectedMilestone : selectedTask.title;
-  const taskCounts = initialProjectTasks.reduce<Record<TaskStatus, number>>((counts, task) => {
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? initialProjects[0];
+  const projectTasks = tasks.filter((task) => task.projectId === selectedProjectId);
+  const activeMilestoneId = projectTasks.some((task) => task.milestoneId === milestoneId) ? milestoneId : projectTasks[0]?.milestoneId ?? "";
+  const activeTaskId = projectTasks.some((task) => task.id === Number(taskId)) ? Number(taskId) : projectTasks[0]?.id ?? 0;
+  const selectedMilestone = projectTasks.find((task) => task.milestoneId === activeMilestoneId)?.milestoneName ?? "Sin hitos";
+  const selectedTask = projectTasks.find((task) => task.id === activeTaskId);
+  const selectedSubject = scope === "project" ? selectedProject.name : scope === "milestone" ? selectedMilestone : selectedTask?.title ?? "Sin tareas";
+  const reportTasks = scope === "milestone" ? projectTasks.filter((task) => task.milestoneId === activeMilestoneId) : scope === "task" ? projectTasks.filter((task) => task.id === activeTaskId) : projectTasks;
+  const taskCounts = reportTasks.reduce<Record<TaskStatus, number>>((counts, task) => {
     counts[task.status] += 1;
     return counts;
   }, { todo: 0, "in-progress": 0, done: 0 });
-  const completedPercentage = Math.round((taskCounts.done / initialProjectTasks.length) * 100);
+  const completedPercentage = reportTasks.length ? Math.round((taskCounts.done / reportTasks.length) * 100) : 0;
+  const budgetedHours = reportTasks.reduce((total, task) => total + (task.budgetedManHours ?? 0), 0);
+  const actualHours = reportTasks.reduce((total, task) => total + (task.actualManHours ?? 0), 0);
 
   const generatePdf = () => {
     const document = new jsPDF({ unit: "mm", format: "a4" });
-    const chart = drawPieChart();
+    const chart = drawPieChart([taskCounts.todo, taskCounts["in-progress"], taskCounts.done]);
     const pageWidth = document.internal.pageSize.getWidth();
     document.setFillColor(47, 80, 127);
     document.rect(0, 0, pageWidth, 25, "F");
@@ -106,7 +111,7 @@ export default function ReportsPage() {
     document.text(selectedSubject, 18, 42);
     document.setFontSize(10);
     document.setTextColor(100, 114, 127);
-    document.text(`${getPeriodLabel(period)} · ${getScopeLabel(scope)} · 09/09/2026`, 18, 50);
+    document.text(`${getPeriodLabel(period)} · ${getScopeLabel(scope)} · ${new Date().toLocaleDateString("es-CL")}`, 18, 50);
 
     document.setTextColor(38, 50, 56);
     document.setFontSize(12);
@@ -114,9 +119,10 @@ export default function ReportsPage() {
     document.setFontSize(10);
     document.setTextColor(82, 96, 107);
     document.text(`Avance general: ${completedPercentage}%`, 18, 78);
-    document.text(`Tareas totales: ${initialProjectTasks.length}`, 18, 86);
+    document.text(`Tareas totales: ${reportTasks.length}`, 18, 86);
     document.text(`Tareas completadas: ${taskCounts.done}`, 18, 94);
     document.text(`Tareas pendientes: ${taskCounts.todo + taskCounts["in-progress"]}`, 18, 102);
+    document.text(`HH presupuestadas: ${budgetedHours} · HH reales: ${actualHours}`, 18, 110);
 
     if (chart) document.addImage(chart, "PNG", 125, 62, 62, 62);
     document.setFillColor(177, 132, 25);
@@ -135,7 +141,7 @@ export default function ReportsPage() {
     document.text("Actividad destacada", 18, 177);
     document.setFontSize(10);
     document.setTextColor(82, 96, 107);
-    initialProjectTasks.slice(0, 4).forEach((task, index) => {
+    reportTasks.slice(0, 4).forEach((task, index) => {
       document.text(`${index + 1}. ${task.title} · ${taskStatusLabels[task.status]}`, 18, 188 + index * 9);
     });
     document.setTextColor(130, 143, 154);
@@ -147,7 +153,7 @@ export default function ReportsPage() {
   return (
     <Box maxW="1600px" mx="auto" px={{ base: 4, md: 6, lg: 8 }} py={{ base: 5, md: 7 }}>
       <Box mb={6}>
-        <Text fontSize="sm" color="#7A8694" mb={1}>Centro de reportes</Text>
+        <Text fontSize="sm" color="#7A8694" mb={1}>{selectedProject.name} · Centro de reportes</Text>
         <Heading size="lg" color="#263238">Solicitar un reporte</Heading>
         <Text mt={1} fontSize="sm" color="#7A8694">Genera un resumen de una obra, hito o tarea en una sola página.</Text>
       </Box>
@@ -195,10 +201,12 @@ export default function ReportsPage() {
             </Field.Root>
             <Field.Root>
               <Field.Label color="#52606B">Obra</Field.Label>
-              <Input value={fallbackProject.name} readOnly borderColor="#DCE3EA" />
+              <select value={selectedProjectId} onChange={(event) => selectWorkspaceProject(Number(event.target.value))} style={{ width: "100%", height: "40px", border: "1px solid #DCE3EA", borderRadius: "6px", padding: "0 12px", color: "#263238", background: "white" }}>
+                {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              </select>
             </Field.Root>
-            {scope === "milestone" && <Field.Root><Field.Label color="#52606B">Hito</Field.Label><select value={milestoneId} onChange={(event) => setMilestoneId(event.target.value)} style={{ width: "100%", height: "40px", border: "1px solid #DCE3EA", borderRadius: "6px", padding: "0 12px", color: "#263238", background: "white" }}>{Array.from(new Map(initialProjectTasks.map((task) => [task.milestoneId, task.milestoneName]))).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field.Root>}
-            {scope === "task" && <Field.Root><Field.Label color="#52606B">Tarea</Field.Label><select value={taskId} onChange={(event) => setTaskId(event.target.value)} style={{ width: "100%", height: "40px", border: "1px solid #DCE3EA", borderRadius: "6px", padding: "0 12px", color: "#263238", background: "white" }}>{initialProjectTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select></Field.Root>}
+            {scope === "milestone" && <Field.Root><Field.Label color="#52606B">Hito</Field.Label><select value={activeMilestoneId} onChange={(event) => setMilestoneId(event.target.value)} style={{ width: "100%", height: "40px", border: "1px solid #DCE3EA", borderRadius: "6px", padding: "0 12px", color: "#263238", background: "white" }}>{Array.from(new Map(projectTasks.map((task) => [task.milestoneId, task.milestoneName]))).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field.Root>}
+            {scope === "task" && <Field.Root><Field.Label color="#52606B">Tarea</Field.Label><select value={activeTaskId} onChange={(event) => setTaskId(event.target.value)} style={{ width: "100%", height: "40px", border: "1px solid #DCE3EA", borderRadius: "6px", padding: "0 12px", color: "#263238", background: "white" }}>{projectTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select></Field.Root>}
           </SimpleGrid>
           <Flex justify="flex-end" mt={5}><Button bg="#2F507F" color="white" onClick={() => setReportGenerated(true)}><FileText size={16} />Generar vista previa</Button></Flex>
         </Card.Body>
@@ -212,10 +220,10 @@ export default function ReportsPage() {
               <BarChart3 size={28} color="#2F507F" />
             </Flex>
             <SimpleGrid columns={{ base: 1, md: 2 }} gap={8} mt={7}>
-              <Box><Text fontSize="xs" fontWeight="700" color="#7A8694" textTransform="uppercase">Resumen ejecutivo</Text><Heading size="xl" color="#2F507F" mt={3}>{completedPercentage}%</Heading><Text mt={1} fontSize="sm" color="#52606B">avance completado</Text><Text mt={5} fontSize="sm" color="#52606B">{initialProjectTasks.length} tareas registradas, {taskCounts.done} completadas y {taskCounts.todo + taskCounts["in-progress"]} pendientes.</Text></Box>
-              <Flex align="center" justify="center" gap={6}><Box w="150px" h="150px" borderRadius="full" bg={`conic-gradient(${taskStatusColors.todo} 0deg 144deg, ${taskStatusColors["in-progress"]} 144deg 288deg, ${taskStatusColors.done} 288deg 360deg)`} display="flex" alignItems="center" justifyContent="center"><Box w="76px" h="76px" borderRadius="full" bg="white" /></Box><Box><Flex align="center" gap={2} mb={2}><Box w="8px" h="8px" borderRadius="full" bg={taskStatusColors.todo} /><Text fontSize="xs" color="#52606B">Por hacer · {taskCounts.todo}</Text></Flex><Flex align="center" gap={2} mb={2}><Box w="8px" h="8px" borderRadius="full" bg={taskStatusColors["in-progress"]} /><Text fontSize="xs" color="#52606B">En progreso · {taskCounts["in-progress"]}</Text></Flex><Flex align="center" gap={2}><Box w="8px" h="8px" borderRadius="full" bg={taskStatusColors.done} /><Text fontSize="xs" color="#52606B">Hechas · {taskCounts.done}</Text></Flex></Box></Flex>
+              <Box><Text fontSize="xs" fontWeight="700" color="#7A8694" textTransform="uppercase">Resumen ejecutivo</Text><Heading size="xl" color="#2F507F" mt={3}>{completedPercentage}%</Heading><Text mt={1} fontSize="sm" color="#52606B">avance completado</Text><Text mt={5} fontSize="sm" color="#52606B">{reportTasks.length} tareas registradas, {taskCounts.done} completadas y {taskCounts.todo + taskCounts["in-progress"]} pendientes.</Text><Text mt={2} fontSize="sm" color="#52606B">HH presupuestadas: {budgetedHours} · HH reales: {actualHours}</Text></Box>
+              <Flex align="center" justify="center" gap={6}><Box w="150px" h="150px" borderRadius="full" bg={`conic-gradient(${taskStatusColors.todo} 0deg ${reportTasks.length ? taskCounts.todo / reportTasks.length * 360 : 0}deg, ${taskStatusColors["in-progress"]} ${reportTasks.length ? taskCounts.todo / reportTasks.length * 360 : 0}deg ${reportTasks.length ? (taskCounts.todo + taskCounts["in-progress"]) / reportTasks.length * 360 : 0}deg, ${taskStatusColors.done} ${reportTasks.length ? (taskCounts.todo + taskCounts["in-progress"]) / reportTasks.length * 360 : 0}deg 360deg)`} display="flex" alignItems="center" justifyContent="center"><Box w="76px" h="76px" borderRadius="full" bg="white" /></Box><Box><Flex align="center" gap={2} mb={2}><Box w="8px" h="8px" borderRadius="full" bg={taskStatusColors.todo} /><Text fontSize="xs" color="#52606B">Por hacer · {taskCounts.todo}</Text></Flex><Flex align="center" gap={2} mb={2}><Box w="8px" h="8px" borderRadius="full" bg={taskStatusColors["in-progress"]} /><Text fontSize="xs" color="#52606B">En progreso · {taskCounts["in-progress"]}</Text></Flex><Flex align="center" gap={2}><Box w="8px" h="8px" borderRadius="full" bg={taskStatusColors.done} /><Text fontSize="xs" color="#52606B">Hechas · {taskCounts.done}</Text></Flex></Box></Flex>
             </SimpleGrid>
-            <Box mt={8} pt={5} borderTop="1px solid" borderColor="#E8EDF3"><Text fontSize="xs" fontWeight="700" color="#7A8694" textTransform="uppercase">Actividad destacada</Text>{initialProjectTasks.slice(0, 4).map((task) => <Flex key={task.id} justify="space-between" gap={3} py={3} borderBottom="1px solid" borderColor="#F0F2F4"><Text fontSize="sm" color="#263238">{task.title}</Text><Text fontSize="xs" color={taskStatusColors[task.status]} fontWeight="700">{taskStatusLabels[task.status]}</Text></Flex>)}</Box>
+            <Box mt={8} pt={5} borderTop="1px solid" borderColor="#E8EDF3"><Text fontSize="xs" fontWeight="700" color="#7A8694" textTransform="uppercase">Actividad destacada</Text>{reportTasks.slice(0, 4).map((task) => <Flex key={task.id} justify="space-between" gap={3} py={3} borderBottom="1px solid" borderColor="#F0F2F4"><Text fontSize="sm" color="#263238">{task.title}</Text><Text fontSize="xs" color={taskStatusColors[task.status]} fontWeight="700">{taskStatusLabels[task.status]}</Text></Flex>)}</Box>
             <Flex justify="flex-end" mt={7}><Button bg="#2F507F" color="white" onClick={generatePdf}><Download size={16} />Descargar PDF</Button></Flex>
           </Card.Body>
         </Card.Root>

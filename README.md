@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Cognito and Google sign-in
+
+Copy `.env.example` to `.env.local` and fill in the Cognito User Pool values. In AWS Cognito:
+
+1. Create a User Pool app client with the authorization code grant, PKCE, and scopes `openid`, `email`, and `profile`. Do not create a client secret for this browser-based flow.
+2. Configure Google as an identity provider in the User Pool, map Google's `email` and `name` attributes, and enable Google in the app client's identity providers.
+3. Cognito creates a federated User Pool profile on the user's first Google sign-in. Google IdP access is controlled by enabling the provider on the app client; do not assign privileged groups automatically.
+4. Configure the Hosted UI callback URL as `http://localhost:3000/api/auth/callback` and sign-out URL as `http://localhost:3000/login`. Add the production URLs before deploying.
+5. Create Cognito groups named exactly `superadmin`, `admin`, `supervisor`, and `trabajador`. Assign privileged groups only to approved users. Users without one of these groups receive the `trabajador` role.
+6. Set `COGNITO_DOMAIN` to the full HTTPS Hosted UI domain and use the matching region, User Pool ID, and app client ID in `.env.local`.
+
+The application uses Cognito Hosted UI with Google federation, OAuth state and PKCE, and an `HttpOnly` session cookie. Role claims are taken from the verified Cognito ID token. `superadmin` and `admin` can access all pages; `supervisor` can access all current pages except configuration; `trabajador` can access dashboard, tasks, and reports. Add the same authorization check to any future data API or server action; page-level protection does not replace data-layer authorization.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

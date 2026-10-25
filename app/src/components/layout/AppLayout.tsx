@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Box } from "@chakra-ui/react";
+import { usePathname } from "next/navigation";
 import AppHeader from "./AppHeader";
 import AppSidebar from "./AppSidebar";
 import {
@@ -16,6 +17,7 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjects[0].id);
@@ -68,9 +70,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
   }, []);
 
+  if (pathname === "/login" || pathname === "/sin-acceso") return children;
+
   const handleProjectChange = (projectId: number) => {
     setSelectedProjectId(projectId);
     window.localStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, String(projectId));
+    window.dispatchEvent(new CustomEvent("fullreports-project-selected", { detail: projectId }));
   };
 
   return (

@@ -16,15 +16,17 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { useProjectTasks } from "../../data/workspace";
 
 type MilestoneStatus = "todo" | "in-progress" | "done";
 
 type Milestone = {
-  id: number;
+  id: number | string;
   title: string;
   description: string;
   date: string;
   status: MilestoneStatus;
+  fromTasks?: boolean;
 };
 
 const columns: Array<{
@@ -86,8 +88,9 @@ const emptyForm = {
 
 export default function MilestonesPage() {
   const [milestones, setMilestones] = useState(initialMilestones);
+  const { tasks, projects, selectedProjectId } = useProjectTasks();
   const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const isEditing = editingId !== null;
@@ -134,7 +137,7 @@ export default function MilestonesPage() {
     });
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: number | string) => {
     setMilestones((current) =>
       current.filter((milestone) => milestone.id !== id),
     );
@@ -152,6 +155,40 @@ export default function MilestonesPage() {
     setFormOpen(false);
   };
 
+  const projectTasks = tasks.filter((task) => task.projectId === selectedProjectId);
+  const importedMilestones = Array.from(new Map(projectTasks.map((task) => [task.milestoneId, task])).values())
+    .filter((task) => !milestones.some((milestone) => String(milestone.id) === task.milestoneId))
+    .map((task) => {
+      const milestoneTasks = projectTasks.filter((item) => item.milestoneId === task.milestoneId);
+      const status: MilestoneStatus = milestoneTasks.every((item) => item.status === "done")
+        ? "done"
+        : milestoneTasks.some((item) => item.status === "in-progress" || item.status === "done")
+          ? "in-progress"
+          : "todo";
+      const dates = milestoneTasks.map((item) => item.scheduledDate).filter((date): date is string => Boolean(date)).sort();
+      return {
+        id: task.milestoneId,
+        title: task.milestoneName,
+        description: `${milestoneTasks.length} actividades del programa de obra.`,
+        date: dates[0] ?? "",
+        status,
+        fromTasks: true,
+      };
+    });
+  const visibleMilestones = [
+    ...milestones.map((milestone) => {
+      const milestoneTasks = projectTasks.filter((task) => task.milestoneId === String(milestone.id));
+      if (!milestoneTasks.length) return milestone;
+      const status: MilestoneStatus = milestoneTasks.every((task) => task.status === "done")
+        ? "done"
+        : milestoneTasks.some((task) => task.status === "in-progress" || task.status === "done")
+          ? "in-progress"
+          : "todo";
+      return { ...milestone, status };
+    }),
+    ...importedMilestones,
+  ];
+
   return (
     <Box maxW="1600px" mx="auto" px={{ base: 4, md: 6, lg: 8 }} py={{ base: 5, md: 7 }}>
         <Flex
@@ -163,7 +200,7 @@ export default function MilestonesPage() {
         >
           <Box>
             <Text fontSize="sm" color="#7A8694" mb={1}>
-              Proyecto Condominio La Serena
+              {projects.find((project) => project.id === selectedProjectId)?.name ?? "Obra seleccionada"}
             </Text>
             <Heading size="lg" color="#263238">
               Hitos del proyecto
@@ -289,7 +326,7 @@ export default function MilestonesPage() {
 
         <SimpleGrid columns={{ base: 1, lg: 3 }} gap={4} alignItems="start">
           {columns.map((column) => {
-            const columnMilestones = milestones.filter(
+            const columnMilestones = visibleMilestones.filter(
               (milestone) => milestone.status === column.status,
             );
 
@@ -343,14 +380,14 @@ export default function MilestonesPage() {
                           )}
                         </Card.Body>
                       </Link>
-                      <Flex justify="flex-end" gap={1} px={2} pb={2}>
+                      {!milestone.fromTasks && <Flex justify="flex-end" gap={1} px={2} pb={2}>
                         <Button variant="ghost" size="xs" color="#52606B" onClick={() => handleEdit(milestone)}>
                           <Edit3 size={13} />
                         </Button>
                         <Button variant="ghost" size="xs" color="#B42318" onClick={() => handleDelete(milestone.id)}>
                           <Trash2 size={13} />
                         </Button>
-                      </Flex>
+                      </Flex>}
                     </Card.Root>
                   ))}
                 </VStack>
