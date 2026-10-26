@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   SESSION_COOKIE,
+  canAccessPath,
   verifySessionToken,
 } from "@/app/src/lib/auth";
 
@@ -28,6 +29,12 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/login") return NextResponse.redirect(new URL("/obras", request.url));
+  if (!canAccessPath(user.role, pathname)) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "No tienes permiso para realizar esta acción." }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/sin-acceso", request.url));
+  }
 
   return NextResponse.next();
 }

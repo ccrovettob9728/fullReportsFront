@@ -11,6 +11,10 @@ export interface AuthenticatedUser {
   role: AppRole;
 }
 
+export function getSuperAdminEmail() {
+  return process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() ?? "";
+}
+
 function getCognitoConfig() {
   const region = process.env.COGNITO_REGION;
   const userPoolId = process.env.COGNITO_USER_POOL_ID;
@@ -38,11 +42,28 @@ export function getAuthConfig() {
   return getCognitoConfig();
 }
 
-function roleFromGroups(groups: unknown): AppRole {
+export function roleFromGroups(groups: unknown, email = ""): AppRole {
+  const superAdminEmail = getSuperAdminEmail();
+  if (superAdminEmail && email.trim().toLowerCase() === superAdminEmail) return "superadmin";
   if (!Array.isArray(groups)) return "trabajador";
   const normalizedGroups = groups.filter((group): group is string => typeof group === "string");
   const precedence: AppRole[] = ["superadmin", "admin", "supervisor", "trabajador"];
   return precedence.find((role) => normalizedGroups.includes(role)) ?? "trabajador";
+}
+
+export function canAccessPath(role: AppRole, pathname: string) {
+  const normalizedPath = pathname.startsWith("/src/app/")
+    ? pathname.slice("/src/app".length)
+    : pathname;
+  const isRolesRoute = normalizedPath === "/roles" || normalizedPath.startsWith("/roles/");
+  const isRolesApi = normalizedPath === "/api/admin/roles" || normalizedPath.startsWith("/api/admin/roles/");
+  if (isRolesRoute || isRolesApi) return role === "superadmin";
+  if (role === "superadmin" || role === "admin") return true;
+  if (role === "supervisor") return normalizedPath !== "/configuracion" && !normalizedPath.startsWith("/configuracion/");
+  if (normalizedPath === "/sin-acceso" || normalizedPath.startsWith("/sin-acceso/")) return true;
+  return ["/dashboard", "/tareas", "/reportes"].some(
+    (route) => normalizedPath === route || normalizedPath.startsWith(`${route}/`),
+  );
 }
 
 function toAuthenticatedUser(payload: JWTPayload): AuthenticatedUser | null {
@@ -54,7 +75,7 @@ function toAuthenticatedUser(payload: JWTPayload): AuthenticatedUser | null {
     sub: payload.sub,
     email,
     name: typeof payload.name === "string" ? payload.name : email,
-    role: roleFromGroups(payload["cognito:groups"]),
+    role: roleFromGroups(payload["cognito:groups"], email),
   };
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -15,6 +16,7 @@ import {
   Settings,
   CalendarDays,
   FileSpreadsheet,
+  ShieldCheck,
 } from "lucide-react";
 
 import {
@@ -85,6 +87,17 @@ export default function AppSidebar({
   onToggle,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { user?: { role?: string } | null }) => setRole(data.user?.role ?? ""))
+      .catch(() => setRole(""));
+  }, []);
+  const visibleMenuItems = role === "superadmin"
+    ? [...menuItems, { label: "Roles", href: "/roles", icon: ShieldCheck }]
+    : menuItems;
 
   return (
     <>
@@ -182,7 +195,7 @@ export default function AppSidebar({
             align="stretch"
             gap={1}
           >
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const Icon = item.icon;
 
               const active =
