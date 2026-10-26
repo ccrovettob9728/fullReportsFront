@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { Box, Button, Flex, Heading, Text } from "@chakra-ui/react";
 import DevLoginToggle from "./DevLoginToggle";
@@ -72,10 +71,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             borderRadius="6px"
             _hover={{ bg: "#263B54" }}
           >
-            <Link href={`/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`}>
+            <a href={`/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`}>
               <GoogleMark />
               Continuar con Google
-            </Link>
+            </a>
           </Button>}
           <Text mt={5} textAlign="center" fontSize="xs" color="#8793A0">
             El acceso y los permisos son administrados por FullReports.

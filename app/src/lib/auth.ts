@@ -77,13 +77,3 @@ export async function verifySessionToken(token: string): Promise<AuthenticatedUs
     return null;
   }
 }
-
-export function roleCanAccessPath(role: AppRole, pathname: string): boolean {
-  if (role === "admin" || role === "superadmin") return true;
-  if (pathname === "/sin-acceso") return true;
-  if (pathname === "/configuracion" || pathname.startsWith("/configuracion/")) return false;
-  if (role === "supervisor") return true;
-  return ["/dashboard", "/tareas", "/reportes"].some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
-}

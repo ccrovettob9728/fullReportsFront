@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  roleCanAccessPath,
   SESSION_COOKIE,
   verifySessionToken,
 } from "@/app/src/lib/auth";
@@ -29,9 +28,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/login") return NextResponse.redirect(new URL("/obras", request.url));
-  if (!roleCanAccessPath(user.role, pathname)) {
-    return NextResponse.redirect(new URL("/sin-acceso", request.url));
-  }
 
   return NextResponse.next();
 }

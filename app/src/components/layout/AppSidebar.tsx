@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 import {
   BarChart3,
@@ -86,24 +85,6 @@ export default function AppSidebar({
   onToggle,
 }: AppSidebarProps) {
   const pathname = usePathname();
-  const [role, setRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((data: { user?: { role: string } | null }) => setRole(data.user?.role ?? "trabajador"))
-      .catch(() => setRole("trabajador"));
-  }, []);
-
-  const visibleItems = menuItems.filter((item) => {
-    if (role === "admin" || role === "superadmin") return true;
-    if (item.href === "/programa") return false;
-    if (item.href === "/asistencia") return ["relaciones-laborales", "relaciones_laborales", "encargado-relaciones-laborales", "rrhh"].includes(role ?? "");
-    if (item.href === "/configuracion") return false;
-    if (item.href === "/reportes") return true;
-    if (role === "supervisor") return true;
-    return ["/dashboard", "/tareas"].includes(item.href);
-  });
 
   return (
     <>
@@ -201,7 +182,7 @@ export default function AppSidebar({
             align="stretch"
             gap={1}
           >
-            {visibleItems.map((item) => {
+            {menuItems.map((item) => {
               const Icon = item.icon;
 
               const active =
