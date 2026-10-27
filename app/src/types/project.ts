@@ -3,4 +3,6 @@ export type Project = {
   name: string;
   description: string;
   status: "active" | "paused" | "completed";
+  startDate?: string;
+  plannedEndDate?: string;
 };

@@ -151,7 +151,7 @@ export default function MilestoneDetailPage({
             <Heading size="lg" color="#263238">{milestoneName}</Heading>
             <Text mt={1} fontSize="sm" color="#7A8694">Tareas asociadas a este hito.</Text>
           </Box>
-          <Button bg="#2F507F" color="white" onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true); }}>
+          <Button w={{ base: "full", md: "auto" }} bg="#2F507F" color="white" onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true); }}>
             <Plus size={16} />
             Nueva tarea
           </Button>
@@ -195,9 +195,9 @@ export default function MilestoneDetailPage({
                     <Input value={form.documentName} onChange={(event) => setForm((current) => ({ ...current, documentName: event.target.value }))} placeholder="informe-de-avance.pdf" borderColor="#DCE3EA" />
                   </Field.Root>
                 </SimpleGrid>
-                <Flex justify="flex-end" gap={3} mt={5}>
-                  <Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button>
-                  <Button type="submit" bg="#2F507F" color="white">{editingId === null ? "Crear tarea" : "Guardar cambios"}</Button>
+                <Flex direction={{ base: "column-reverse", sm: "row" }} justify="flex-end" gap={3} mt={5}>
+                  <Button w={{ base: "full", sm: "auto" }} type="button" variant="outline" onClick={closeForm}>Cancelar</Button>
+                  <Button w={{ base: "full", sm: "auto" }} type="submit" bg="#2F507F" color="white">{editingId === null ? "Crear tarea" : "Guardar cambios"}</Button>
                 </Flex>
               </form>
             </Card.Body>

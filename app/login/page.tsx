@@ -10,7 +10,7 @@ const errorMessages: Record<string, string> = {
   configuration: "El inicio de sesión aún no está configurado. Contacta al administrador.",
   callback: "No pudimos validar la respuesta de autenticación. Intenta nuevamente.",
   exchange: "No pudimos completar el inicio de sesión con Google. Intenta nuevamente.",
-  scope: "Cognito rechazó los ámbitos solicitados. En el App client habilita OpenID y Correo electrónico en los ámbitos de OAuth permitidos.",
+  scope: "Cognito rechazó los ámbitos solicitados. En el App client habilita OpenID, Correo electrónico y Perfil en los ámbitos de OAuth permitidos.",
   identity: "Google o Cognito rechazaron el inicio de sesión. Revisa que Google esté habilitado en el App client y vuelve a intentarlo.",
 };
 
@@ -51,7 +51,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <Box w="100%" maxW="420px">
           <Text fontSize="sm" color="#2F507F" fontWeight="700">Acceso seguro</Text>
           <Heading mt={2} color="#263238" fontSize="2xl">Iniciar sesión</Heading>
-          <Text mt={2} color="#6F7C89" fontSize="sm">Usa tu cuenta de Google para continuar.</Text>
+          <Text mt={2} color="#6F7C89" fontSize="sm">
+            Usa tu cuenta de Google para continuar. Podrás elegir qué cuenta usar.
+          </Text>
 
           {params.error && (
             <Box role="alert" mt={5} borderLeft="3px solid #C2414B" bg="#FBEAEC" px={4} py={3}>

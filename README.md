@@ -2,29 +2,32 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and run the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/login](http://localhost:3000/login) in your browser. For local UI development, you do not need to install or configure AWS Cognito:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. On the login page, switch **Login ON** to **Login OFF**.
+2. Browse the app without signing in. This development-only switch bypasses route login checks; it does not create a user session or test Google/Cognito.
+3. Switch **Login ON** again to restore the login requirement.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This bypass is available only with `npm run dev`; it is not available in production. Cognito-backed sign-in and the Cognito role-management page require a real AWS User Pool and Google provider configuration.
 
 ## Cognito and Google sign-in
 
-Copy `.env.example` to `.env.local` and fill in the Cognito User Pool values. In AWS Cognito:
+To test the real Google sign-in flow, copy `.env.example` to `.env.local` and fill in the Cognito User Pool values. In PowerShell:
 
-1. Create a User Pool app client with the authorization code grant, PKCE, and scopes `openid`, `email`, and `profile`. Do not create a client secret for this browser-based flow.
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Then configure AWS Cognito:
+
+1. Create a User Pool app client with the authorization code grant, PKCE, and scopes `openid`, `email`, and `profile`. Use Cognito Managed Login branding so `prompt=select_account` is forwarded to Google. Do not create a client secret for this browser-based flow.
 2. Configure Google as an identity provider in the User Pool, map Google's `email` and `name` attributes, and enable Google in the app client's identity providers.
 3. Cognito creates a federated User Pool profile on the user's first Google sign-in. Google IdP access is controlled by enabling the provider on the app client; do not assign privileged groups automatically.
 4. Configure the Hosted UI callback URL as `http://localhost:3000/api/auth/callback` and sign-out URL as `http://localhost:3000/login`. Add the production URLs before deploying.
@@ -32,7 +35,11 @@ Copy `.env.example` to `.env.local` and fill in the Cognito User Pool values. In
 6. Set `COGNITO_DOMAIN` to the full HTTPS Hosted UI domain and use the matching region, User Pool ID, and app client ID in `.env.local`.
 7. Give the application runtime AWS credentials with permission to run `cognito-idp:ListUsersInGroup`, `cognito-idp:ListUsers`, `cognito-idp:AdminListGroupsForUser`, `cognito-idp:AdminAddUserToGroup`, and `cognito-idp:AdminRemoveUserFromGroup` on this User Pool. Use the hosting platform's IAM role/credential mechanism; do not put AWS access keys in client code.
 
+For local role-management API testing, set `AWS_PROFILE` in `.env.local` to the AWS CLI profile configured with IAM Identity Center (for example, `fullreports-dev`). Keep the SSO start URL, SSO region, account, and role in the local AWS CLI configuration, then authenticate with `aws sso login --profile fullreports-dev`. The profile must have access only to this User Pool. Never put AWS access keys in `.env.local` or expose them to browser code. Restart `npm run dev` after changing `.env.local`.
+
 The application uses Cognito Hosted UI with Google federation, OAuth state and PKCE, and an `HttpOnly` session cookie. Role claims are taken from the verified Cognito ID token, with `SUPERADMIN_EMAIL` as the superadmin override. The **Roles** page is visible only to the superadmin and assigns Cognito groups to accounts that have signed in with Google at least once. Role changes take effect after the affected user signs in again and receives a new ID token. `superadmin` can access and manage all pages; `admin` can access all pages except role management; `supervisor` can access all current pages except configuration and role management; `trabajador` can access dashboard, tasks, and reports. Route access and the role-management API are checked on the server. Add the same authorization check to any future data API or server action; page-level protection does not replace data-layer authorization.
+
+Signing out ends the app and Cognito sessions, but Cognito does not sign the user out of Google. The next sign-in request asks Google to show its account chooser. If Google still signs in automatically, verify that the User Pool uses Managed Login branding; Cognito's classic Hosted UI does not forward this prompt.
 
 ## Learn More
 

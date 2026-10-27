@@ -228,7 +228,8 @@ export default function AppHeader({
                 position="absolute"
                 top="calc(100% + 10px)"
                 right="0"
-                w={{ base: "300px", md: "360px" }}
+                w={{ base: "calc(100vw - 1.5rem)", md: "360px" }}
+                maxW="360px"
                 bg="white"
                 border="1px solid"
                 borderColor="#DCE3EA"

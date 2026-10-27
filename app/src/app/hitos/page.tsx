@@ -211,6 +211,7 @@ export default function MilestonesPage() {
           </Box>
 
           <Button
+            w={{ base: "full", md: "auto" }}
             colorPalette="blue"
             bg="#2F507F"
             color="white"
@@ -307,14 +308,14 @@ export default function MilestonesPage() {
                 </Field.Root>
               </SimpleGrid>
 
-              <Flex justify="flex-end" gap={3} mt={5}>
+              <Flex direction={{ base: "column-reverse", sm: "row" }} justify="flex-end" gap={3} mt={5}>
                 {isEditing && (
-                  <Button variant="outline" onClick={handleCancel} type="button">
+                  <Button w={{ base: "full", sm: "auto" }} variant="outline" onClick={handleCancel} type="button">
                     <X size={16} />
                     Cancelar
                   </Button>
                 )}
-                <Button type="submit" bg="#2F507F" color="white">
+                <Button w={{ base: "full", sm: "auto" }} type="submit" bg="#2F507F" color="white">
                   {isEditing ? <Edit3 size={16} /> : <Plus size={16} />}
                   {isEditing ? "Guardar cambios" : "Crear hito"}
                 </Button>

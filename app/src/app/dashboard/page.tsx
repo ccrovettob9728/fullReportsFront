@@ -558,6 +558,7 @@ export default function DashboardPage() {
                       key={activity.title}
                       py={4}
                       gap={3}
+                      flexWrap="wrap"
                       borderTop={
                         index === 0
                           ? "none"
@@ -579,7 +580,7 @@ export default function DashboardPage() {
                         <Icon size={16} />
                       </Box>
 
-                      <Box flex="1">
+                      <Box flex="1" minW="0">
                         <Text
                           fontSize="sm"
                           fontWeight="600"
@@ -601,6 +602,7 @@ export default function DashboardPage() {
                         fontSize="10px"
                         color="#A0A9B4"
                         whiteSpace="nowrap"
+                        ml="auto"
                       >
                         {activity.time}
                       </Text>

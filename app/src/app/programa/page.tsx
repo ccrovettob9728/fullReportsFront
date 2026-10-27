@@ -140,7 +140,7 @@ export default function ProgramPage() {
               <Field.Root><Field.Label>Fecha programada</Field.Label><Input type="date" value={form.scheduledDate} onChange={(event) => setForm({ ...form, scheduledDate: event.target.value })} borderColor="#DCE3EA" /></Field.Root>
               <Field.Root><Field.Label>Clasificación</Field.Label><select value={form.taskType} onChange={(event) => setForm({ ...form, taskType: event.target.value as ProgramTaskForm["taskType"] })} style={{ width: "100%", height: "40px", border: "1px solid #DCE3EA", borderRadius: "6px", padding: "0 12px", background: "white" }}><option value="scheduled">Programada</option><option value="out-of-program">Fuera del programa</option></select></Field.Root>
             </SimpleGrid>
-            <Flex justify="flex-end" mt={4}><Button type="submit" bg="#2F507F" color="white"><Plus size={16} />Agregar tarea</Button></Flex>
+            <Flex justify="flex-end" mt={4}><Button w={{ base: "full", sm: "auto" }} type="submit" bg="#2F507F" color="white"><Plus size={16} />Agregar tarea</Button></Flex>
           </form>
           {message && <Text mt={4} fontSize="sm" color="#2F507F" role="status">{message}</Text>}
         </Card.Body>

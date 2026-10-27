@@ -177,6 +177,8 @@ export default function AppSidebar({
           px={3}
           py={5}
           pb="80px"
+          maxH="calc(100dvh - 64px)"
+          overflowY="auto"
         >
           <Text
             display="block"

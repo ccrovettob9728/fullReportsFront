@@ -46,7 +46,9 @@ export default function DevLoginToggle({ enabled: initialEnabled }: DevLoginTogg
         <Box>
           <Text fontSize="sm" fontWeight="700" color="#493B19">Modo local de autenticación</Text>
           <Text mt={1} fontSize="xs" color="#74643D">
-            {enabled ? "Login requerido" : "Login desactivado solo en este entorno local"}
+            {enabled
+              ? "El login real requiere Cognito configurado"
+              : "Acceso sin sesión para probar la interfaz local"}
           </Text>
         </Box>
         <Button

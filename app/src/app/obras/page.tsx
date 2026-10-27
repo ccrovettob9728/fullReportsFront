@@ -22,10 +22,26 @@ import {
 } from "../../data/projects";
 import type { Project } from "../../types/project";
 
-const emptyForm = {
-  name: "",
-  description: "",
-  status: "active" as Project["status"],
+const createEmptyForm = () => {
+  const today = new Date();
+  const startDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  return {
+    name: "",
+    description: "",
+    status: "active" as Project["status"],
+    startDate,
+    plannedEndDate: "",
+  };
+};
+
+const formatDate = (date: string) => {
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
 };
 
 const statusLabels: Record<Project["status"], string> = {
@@ -42,7 +58,7 @@ const statusColors: Record<Project["status"], string> = {
 
 export default function ObrasPage() {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(createEmptyForm);
   const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
@@ -79,10 +95,12 @@ export default function ObrasPage() {
       name: form.name.trim(),
       description: form.description.trim() || "Sin descripción",
       status: form.status,
+      startDate: form.startDate,
+      plannedEndDate: form.plannedEndDate,
     };
 
     persistProjects([...projects, nextProject]);
-    setForm(emptyForm);
+    setForm(createEmptyForm());
     setFormOpen(false);
   };
 
@@ -100,7 +118,7 @@ export default function ObrasPage() {
             <Heading size="lg" color="#263238">Obras y proyectos</Heading>
             <Text mt={1} fontSize="sm" color="#7A8694">Crea y administra los proyectos disponibles en tu dashboard.</Text>
           </Box>
-          <Button bg="#2F507F" color="white" onClick={() => setFormOpen(true)}>
+          <Button w={{ base: "full", md: "auto" }} bg="#2F507F" color="white" onClick={() => setFormOpen(true)}>
             <Plus size={16} />
             Nueva obra
           </Button>
@@ -124,14 +142,22 @@ export default function ObrasPage() {
                       <option value="completed">Completada</option>
                     </select>
                   </Field.Root>
+                  <Field.Root required>
+                    <Field.Label color="#52606B">Fecha de inicio</Field.Label>
+                    <Input type="date" value={form.startDate} onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))} borderColor="#DCE3EA" />
+                  </Field.Root>
+                  <Field.Root required>
+                    <Field.Label color="#52606B">Fecha presupuestada de término</Field.Label>
+                    <Input type="date" value={form.plannedEndDate} min={form.startDate} onChange={(event) => setForm((current) => ({ ...current, plannedEndDate: event.target.value }))} borderColor="#DCE3EA" />
+                  </Field.Root>
                   <Field.Root gridColumn={{ base: "auto", md: "span 2" }}>
                     <Field.Label color="#52606B">Descripción</Field.Label>
                     <Textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Describe brevemente la obra" borderColor="#DCE3EA" rows={3} />
                   </Field.Root>
                 </SimpleGrid>
-                <Flex justify="flex-end" gap={3} mt={5}>
-                  <Button type="button" variant="outline" onClick={() => { setForm(emptyForm); setFormOpen(false); }}>Cancelar</Button>
-                  <Button type="submit" bg="#2F507F" color="white"><Plus size={16} />Crear obra</Button>
+                <Flex direction={{ base: "column-reverse", sm: "row" }} justify="flex-end" gap={3} mt={5}>
+                  <Button w={{ base: "full", sm: "auto" }} type="button" variant="outline" onClick={() => { setForm(createEmptyForm()); setFormOpen(false); }}>Cancelar</Button>
+                  <Button w={{ base: "full", sm: "auto" }} type="submit" bg="#2F507F" color="white"><Plus size={16} />Crear obra</Button>
                 </Flex>
               </form>
             </Card.Body>
@@ -160,10 +186,16 @@ export default function ObrasPage() {
                       <Box color={statusColors[project.status]} flexShrink={0}><StatusIcon size={18} /></Box>
                     </Flex>
                     <Text mt={4} fontSize="sm" color="#7A8694" minH="42px">{project.description}</Text>
+                    {project.startDate && (
+                      <Text mt={2} fontSize="xs" color="#7A8694">
+                        Inicio: {formatDate(project.startDate)}
+                        {project.plannedEndDate && ` · Término presupuestado: ${formatDate(project.plannedEndDate)}`}
+                      </Text>
+                    )}
                   </Card.Body>
                 </Link>
                 <Card.Body pt={0} px={5} pb={5}>
-                  <Flex align="center" justify="space-between" pt={4} borderTop="1px solid" borderColor="#EEF1F4">
+                  <Flex align="center" justify="space-between" gap={2} wrap="wrap" pt={4} borderTop="1px solid" borderColor="#EEF1F4">
                     <Text fontSize="xs" fontWeight="700" color={statusColors[project.status]}>{statusLabels[project.status]}</Text>
                     <Button variant="ghost" size="sm" color="#B42318" onClick={() => handleDelete(project.id)} disabled={projects.length === 1}>
                       <Trash2 size={15} />

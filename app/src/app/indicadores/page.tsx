@@ -114,11 +114,11 @@ export default function IndicatorsPage() {
             <Flex align="center" gap={2}><Target size={18} color="#2F507F" /><Heading size="sm" color="#263238">Cumplimiento de tareas</Heading></Flex>
           </Card.Header>
           <Card.Body p={{ base: 4, md: 6 }}>
-            <Flex align="center" gap={6}>
-              <Box w="150px" h="150px" borderRadius="full" bg={`conic-gradient(#2E9B6F ${completionRate * 3.6}deg, #E8EDF3 0deg)`} display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
+            <Flex align="center" direction={{ base: "column", sm: "row" }} gap={{ base: 4, sm: 6 }}>
+              <Box w={{ base: "130px", sm: "150px" }} h={{ base: "130px", sm: "150px" }} borderRadius="full" bg={`conic-gradient(#2E9B6F ${completionRate * 3.6}deg, #E8EDF3 0deg)`} display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
                 <Flex w="88px" h="88px" borderRadius="full" bg="white" align="center" justify="center" direction="column"><Text fontSize="2xl" fontWeight="800" color="#2E9B6F">{completionRate}%</Text><Text fontSize="10px" color="#7A8694">completado</Text></Flex>
               </Box>
-              <Box>
+              <Box w={{ base: "full", sm: "auto" }}>
                 <Text fontSize="sm" fontWeight="700" color="#263238">Ritmo de ejecución</Text>
                 <Text mt={2} fontSize="sm" color="#7A8694">{completedTasks} de {initialProjectTasks.length} tareas terminadas.</Text>
                 <Flex align="center" gap={2} mt={4}><Box w="8px" h="8px" borderRadius="full" bg="#2E9B6F" /><Text fontSize="xs" color="#52606B">Hechas · {completedTasks}</Text></Flex>
