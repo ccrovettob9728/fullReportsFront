@@ -14,6 +14,7 @@ const roleGroups: AppRole[] = ["superadmin", "admin", "supervisor", "trabajador"
 const assignableRoles: AssignableRole[] = ["admin", "supervisor", "trabajador"];
 
 export type ManagedUser = {
+  sub?: string;
   email: string;
   name: string;
   role: AppRole;
@@ -38,7 +39,7 @@ function getRoleClient() {
 
 export async function listManagedUsers(): Promise<ManagedUser[]> {
   const { client, userPoolId } = getRoleClient();
-  const usersByEmail = new Map<string, { email: string; name: string; groups: string[] }>();
+  const usersByEmail = new Map<string, { sub?: string; email: string; name: string; groups: string[] }>();
 
   for (const group of roleGroups) {
     let nextToken: string | undefined;
@@ -57,10 +58,12 @@ export async function listManagedUsers(): Promise<ManagedUser[]> {
         const email = attributes.email?.trim().toLowerCase();
         if (!email) continue;
         const existing = usersByEmail.get(email) ?? {
+          sub: attributes.sub,
           email,
           name: attributes.name?.trim() || email,
           groups: [],
         };
+        existing.sub ??= attributes.sub;
         if (!existing.groups.includes(group)) existing.groups.push(group);
         usersByEmail.set(email, existing);
       }
@@ -78,7 +81,7 @@ export async function listManagedUsers(): Promise<ManagedUser[]> {
   }
 
   return [...usersByEmail.values()]
-    .map(({ email, name, groups }) => ({ email, name, role: roleFromGroups(groups, email) }))
+    .map(({ sub, email, name, groups }) => ({ sub, email, name, role: roleFromGroups(groups, email) }))
     .sort((first, second) => first.email.localeCompare(second.email));
 }
 

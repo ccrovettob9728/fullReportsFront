@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { initialProjectTasks, type ProjectTask } from "./tasks";
 import { initialProjects, PROJECTS_STORAGE_KEY, SELECTED_PROJECT_STORAGE_KEY } from "./projects";
 import type { Project } from "../types/project";
+import { finishAppLoading, startAppLoading } from "../lib/app-loading";
 
 export const TASKS_STORAGE_KEY = "fullreports-tasks";
 export const ATTENDANCE_STORAGE_KEY = "fullreports-attendance";
@@ -46,21 +47,94 @@ export function useProjectTasks() {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjects[0].id);
   const [ready, setReady] = useState(false);
+  const [role, setRole] = useState("");
 
   useEffect(() => {
-    const loadWorkspace = () => {
-      setTasks(readTasks());
+    let active = true;
+    const loadWorkspace = async () => {
+      const localTasks = readTasks();
+      let localProjects = initialProjects;
       try {
         const storedProjects = window.localStorage.getItem(PROJECTS_STORAGE_KEY);
-        if (storedProjects) setProjects(JSON.parse(storedProjects) as Project[]);
+        if (storedProjects) localProjects = JSON.parse(storedProjects) as Project[];
       } catch {
-        setProjects(initialProjects);
+        localProjects = initialProjects;
       }
       const storedProjectId = Number(window.localStorage.getItem(SELECTED_PROJECT_STORAGE_KEY));
+      setTasks(localTasks);
+      setProjects(localProjects);
       if (storedProjectId) setSelectedProjectId(storedProjectId);
       setReady(true);
+
+      try {
+        const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" });
+        if (!sessionResponse.ok) throw new Error("No se pudo consultar la sesión.");
+        const session = await sessionResponse.json() as { user?: { role?: string } | null };
+        const currentRole = session.user?.role ?? "";
+        if (!active) return;
+        setRole(currentRole);
+        if (!currentRole) return;
+
+        const projectResponse = await fetch("/api/workforce/projects", { cache: "no-store" });
+        const projectData = await projectResponse.json() as { projects?: Array<Project & { assignedWorkers?: unknown[] }>; error?: string };
+        if (!projectResponse.ok) throw new Error(projectData.error || "No se pudieron cargar las obras compartidas.");
+        const sharedProjects = projectData.projects ?? [];
+        if (currentRole === "trabajador") {
+          setProjects(sharedProjects);
+          setSelectedProjectId(sharedProjects[0]?.id ?? 0);
+          if (!sharedProjects[0]) {
+            setTasks([]);
+            return;
+          }
+          const taskResponse = await fetch(`/api/workforce/projects/${sharedProjects[0].id}/tasks`, { cache: "no-store" });
+          const taskData = await taskResponse.json() as { tasks?: ProjectTask[]; error?: string };
+          if (!taskResponse.ok) throw new Error(taskData.error || "No se pudieron cargar las actividades.");
+          if (active) setTasks(taskData.tasks ?? []);
+          return;
+        }
+
+        if (sharedProjects.length > 0) setProjects(sharedProjects);
+        const canPersist = currentRole === "admin" || currentRole === "superadmin" || currentRole === "supervisor";
+        const tasksByProject = await Promise.all(sharedProjects.map(async (project) => {
+          const response = await fetch(`/api/workforce/projects/${project.id}/tasks`, { cache: "no-store" });
+          const data = await response.json() as { tasks?: ProjectTask[]; error?: string };
+          if (!response.ok) throw new Error(data.error || `No se pudieron cargar las actividades de ${project.name}.`);
+          let remoteTasks = data.tasks ?? [];
+          const localProjectTasks = localTasks.filter((task) => task.projectId === project.id);
+          if (!remoteTasks.length && localProjectTasks.length && canPersist) {
+            const saveResponse = await fetch(`/api/workforce/projects/${project.id}/tasks`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tasks: localProjectTasks }),
+            });
+            const saveData = await saveResponse.json() as { error?: string };
+            if (!saveResponse.ok) throw new Error(saveData.error || `No se pudieron guardar las actividades de ${project.name}.`);
+            remoteTasks = localProjectTasks;
+          }
+          return { projectId: project.id, tasks: remoteTasks, localTasks: localProjectTasks };
+        }));
+        if (!active) return;
+        let mergedTasks = localTasks;
+        for (const result of tasksByProject) {
+          if (!result.tasks.length) continue;
+          const localById = new Map(result.localTasks.map((task) => [task.id, task]));
+          const mergedProjectTasks = result.tasks.map((task) => ({
+            ...localById.get(task.id),
+            ...task,
+          }));
+          mergedTasks = [
+            ...mergedTasks.filter((task) => task.projectId !== result.projectId),
+            ...mergedProjectTasks,
+          ];
+        }
+        setTasks(mergedTasks);
+        window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(mergedTasks));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "No se pudo sincronizar el espacio de trabajo.";
+        window.dispatchEvent(new CustomEvent("fullreports-data-error", { detail: message }));
+      }
     };
-    const loadTimeout = window.setTimeout(loadWorkspace, 0);
+    const loadTimeout = window.setTimeout(() => { void loadWorkspace(); }, 0);
     const syncTasks = () => setTasks(readTasks());
     const syncProjects = () => {
       try {
@@ -79,6 +153,7 @@ export function useProjectTasks() {
     window.addEventListener("fullreports-project-selected", syncProject);
     return () => {
       window.clearTimeout(loadTimeout);
+      active = false;
       window.removeEventListener("storage", syncTasks);
       window.removeEventListener("fullreports-tasks-updated", syncTasks);
       window.removeEventListener("fullreports-projects-updated", syncProjects);
@@ -86,10 +161,35 @@ export function useProjectTasks() {
     };
   }, []);
 
-  const saveTasks = (nextTasks: ProjectTask[]) => {
+  const saveTasks = async (nextTasks: ProjectTask[]) => {
     setTasks(nextTasks);
     window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(nextTasks));
     window.dispatchEvent(new Event("fullreports-tasks-updated"));
+    if (role !== "admin" && role !== "superadmin" && role !== "supervisor") return;
+    startAppLoading();
+    try {
+      for (const project of projects) {
+        const projectTasks = nextTasks.filter((task) => task.projectId === project.id);
+        const response = await fetch(`/api/workforce/projects/${project.id}/tasks`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tasks: projectTasks }),
+        });
+        const data = await response.json() as { error?: string };
+        if (!response.ok) {
+          const message = data.error || `No se pudieron guardar las actividades de ${project.name}.`;
+          window.dispatchEvent(new CustomEvent("fullreports-data-error", { detail: message }));
+          throw new Error(message);
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        window.dispatchEvent(new CustomEvent("fullreports-data-error", { detail: error.message }));
+      }
+      throw error;
+    } finally {
+      finishAppLoading();
+    }
   };
 
   return { tasks, projects, selectedProjectId, ready, saveTasks };

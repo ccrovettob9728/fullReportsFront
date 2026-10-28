@@ -19,10 +19,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const [activity, setActivity] = useState("");
   const [workersCount, setWorkersCount] = useState(task?.workersCount ?? 1);
   const [attachmentError, setAttachmentError] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   const updateTask = (changes: Partial<NonNullable<typeof task>>) => {
     if (!task) return;
-    saveTasks(tasks.map((item) => item.id === task.id ? { ...item, ...changes } : item));
+    void saveTasks(tasks.map((item) => item.id === task.id ? { ...item, ...changes } : item))
+      .then(() => setSaveError(""))
+      .catch((reason: unknown) => setSaveError(reason instanceof Error ? reason.message : "No se pudo guardar la tarea."));
   };
 
   const startWork = () => {
@@ -98,6 +101,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <Box maxW="1100px" mx="auto" px={{ base: 4, md: 6, lg: 8 }} py={{ base: 5, md: 7 }}>
+      {saveError && <Text mb={4} color="#B42318" role="alert">{saveError}</Text>}
       <Link href="/tareas" style={{ textDecoration: "none" }}>
         <Flex align="center" gap={2} color="#2F507F" mb={5}>
           <ArrowLeft size={16} />

@@ -5,6 +5,7 @@ import { ShieldCheck, UserPlus } from "lucide-react";
 import { Box, Button, Card, Field, Flex, Heading, Input, SimpleGrid, Table, Text } from "@chakra-ui/react";
 import type { AppRole } from "../../lib/auth";
 import type { AssignableRole, ManagedUser } from "../../lib/cognito-roles";
+import { finishAppLoading, startAppLoading } from "../../lib/app-loading";
 
 type ApiResponse = {
   users?: ManagedUser[];
@@ -55,6 +56,7 @@ export default function RolesPage() {
   }, [loadUsers]);
 
   const assignRole = async (userEmail: string, role: AssignableRole) => {
+    startAppLoading();
     setBusyEmail(userEmail);
     setMessage("");
     try {
@@ -75,6 +77,7 @@ export default function RolesPage() {
       return false;
     } finally {
       setBusyEmail("");
+      finishAppLoading();
     }
   };
 

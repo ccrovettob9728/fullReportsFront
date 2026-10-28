@@ -37,7 +37,19 @@ Then configure AWS Cognito:
 
 For local role-management API testing, set `AWS_PROFILE` in `.env.local` to the AWS CLI profile configured with IAM Identity Center (for example, `fullreports-dev`). Keep the SSO start URL, SSO region, account, and role in the local AWS CLI configuration, then authenticate with `aws sso login --profile fullreports-dev`. The profile must have access only to this User Pool. Never put AWS access keys in `.env.local` or expose them to browser code. Restart `npm run dev` after changing `.env.local`.
 
-The application uses Cognito Hosted UI with Google federation, OAuth state and PKCE, and an `HttpOnly` session cookie. Role claims are taken from the verified Cognito ID token, with `SUPERADMIN_EMAIL` as the superadmin override. The **Roles** page is visible only to the superadmin and assigns Cognito groups to accounts that have signed in with Google at least once. Role changes take effect after the affected user signs in again and receives a new ID token. `superadmin` can access and manage all pages; `admin` can access all pages except role management; `supervisor` can access all current pages except configuration and role management; `trabajador` can access dashboard, tasks, and reports. Route access and the role-management API are checked on the server. Add the same authorization check to any future data API or server action; page-level protection does not replace data-layer authorization.
+The application uses Cognito Hosted UI with Google federation, OAuth state and PKCE, and an `HttpOnly` session cookie. Role claims are taken from the verified Cognito ID token, with `SUPERADMIN_EMAIL` as the superadmin override. The **Roles** page is visible only to the superadmin and assigns Cognito groups to accounts that have signed in with Google at least once. Role changes take effect after the affected user signs in again and receives a new ID token. `superadmin` can access and manage all pages; `admin` can access all pages except role management; `supervisor` can access all current pages except configuration and role management; `trabajador` can access only dashboard, attendance, and activities. Workforce APIs authorize each operation on the server; page access alone does not grant access to data.
+
+## Workforce data and worker accounts
+
+Projects, worker-to-project assignments, project machinery, scheduled tasks, shifts, and activity logs are stored in DynamoDB so administrators and workers see the same data across accounts and devices. Configure `DYNAMODB_TABLE_NAME` in `.env.local` and in the production runtime. Create the table once from the repository root:
+
+```powershell
+aws cloudformation deploy --template-file infra/workforce-table.yaml --stack-name fullreports-workforce --parameter-overrides TableName=fullreports-workforce --profile fullreports-dev
+```
+
+Use the appropriate AWS CLI profile for your environment. The application's runtime role needs `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:DeleteItem`, `dynamodb:Query`, and `dynamodb:TransactWriteItems` on the table and its `GSI1` index, in addition to the Cognito permissions listed above. Do not put AWS credentials in client code. Administrators create or migrate projects, assign accounts that have the `trabajador` role, maintain project machinery, and manage scheduled activities from the project/program pages. A worker can be assigned to only one project at a time.
+
+Worker shift times are recorded by the server, and an open shift or activity is unique per worker. Attendance percentage is the share of weekdays (Monday-Friday) since the project's start date with a recorded shift. Recorded hours are elapsed time between clock-in and clock-out; an open shift is included live in the dashboard.
 
 Signing out ends the app and Cognito sessions, but Cognito does not sign the user out of Google. The next sign-in request asks Google to show its account chooser. If Google still signs in automatically, verify that the User Pool uses Managed Login branding; Cognito's classic Hosted UI does not forward this prompt.
 

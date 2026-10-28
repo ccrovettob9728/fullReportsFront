@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import readXlsxFile from "read-excel-file/browser";
 import { FileUp, Plus, Upload } from "lucide-react";
 import { Box, Button, Card, Field, Flex, Heading, Input, SimpleGrid, Text } from "@chakra-ui/react";
 import { useProjectTasks } from "../../data/workspace";
 import type { ProjectTask } from "../../data/tasks";
+import type { WorkerActivity } from "../../types/workforce";
 
 type ProgramTaskForm = {
   title: string;
@@ -39,10 +40,31 @@ export default function ProgramPage() {
   const { tasks, projects, selectedProjectId, saveTasks } = useProjectTasks();
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState("");
+  const [workerActivities, setWorkerActivities] = useState<WorkerActivity[]>([]);
+  const [activityError, setActivityError] = useState("");
   const projectName = projects.find((project) => project.id === selectedProjectId)?.name ?? "Obra seleccionada";
   const projectTasks = tasks.filter((task) => task.projectId === selectedProjectId);
 
-  const addTask = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    let active = true;
+    const loadWorkerActivities = async () => {
+      try {
+        const response = await fetch(`/api/workforce/projects/${selectedProjectId}/activities`, { cache: "no-store" });
+        const data = await response.json() as { activities?: WorkerActivity[]; error?: string };
+        if (!response.ok) throw new Error(data.error || "No se pudo consultar el historial de actividades.");
+        if (active) {
+          setWorkerActivities(data.activities ?? []);
+          setActivityError("");
+        }
+      } catch (reason) {
+        if (active) setActivityError(reason instanceof Error ? reason.message : "No se pudo consultar el historial de actividades.");
+      }
+    };
+    void loadWorkerActivities();
+    return () => { active = false; };
+  }, [selectedProjectId]);
+
+  const addTask = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!form.title.trim() || !form.milestoneName.trim()) return;
     const nextId = Math.max(0, ...tasks.map((task) => task.id)) + 1;
@@ -61,7 +83,12 @@ export default function ProgramPage() {
       taskType: form.taskType,
       activityLog: [],
     };
-    saveTasks([...tasks, newTask]);
+    try {
+      await saveTasks([...tasks, newTask]);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "La actividad no se pudo guardar en el servidor.");
+      return;
+    }
     setForm(emptyForm);
     setMessage("Tarea agregada al programa de la obra.");
   };
@@ -103,8 +130,12 @@ export default function ProgramPage() {
       if (imported.length === 0) {
         setMessage("No se encontraron actividades. Revisa que la primera fila tenga una columna Actividad o Tarea.");
       } else {
-        saveTasks([...tasks, ...imported]);
-        setMessage(`${imported.length} actividades importadas desde ${file.name}.`);
+        try {
+          await saveTasks([...tasks, ...imported]);
+          setMessage(`${imported.length} actividades importadas desde ${file.name}.`);
+        } catch (reason) {
+          setMessage(reason instanceof Error ? reason.message : "No se pudieron guardar las actividades en el servidor.");
+        }
       }
     } catch {
       setMessage("No se pudo leer el archivo. Usa un libro XLSX válido.");
@@ -148,6 +179,33 @@ export default function ProgramPage() {
 
       <Flex align="center" gap={2} mb={3}><Upload size={17} color="#2F507F" /><Heading size="sm" color="#263238">Actividades de la obra · {projectTasks.length}</Heading></Flex>
       <Flex direction="column" borderTop="1px solid #E8EDF3">{projectTasks.map((task) => <Flex key={task.id} justify="space-between" gap={4} align="center" py={3} borderBottom="1px solid #E8EDF3" wrap="wrap"><Box><Text fontSize="sm" fontWeight="700" color="#263238">{task.title}</Text><Text fontSize="xs" color="#7A8694">{task.milestoneName} · {task.supervisor || "Sin supervisor asignado"} · {task.scheduledDate || "Sin fecha"}</Text></Box><Flex align="center" gap={3}><Text fontSize="xs" color={task.taskType === "out-of-program" ? "#B42318" : "#52606B"}>{task.taskType === "out-of-program" ? "Fuera del programa" : "Programada"}</Text><Text fontSize="sm" fontWeight="700" color="#2F507F">{task.budgetedManHours ?? 0} HH</Text></Flex></Flex>)}</Flex>
+
+      <Card.Root mt={7} border="1px solid" borderColor="#E8EDF3" borderRadius="12px" bg="white">
+        <Card.Body p={{ base: 4, md: 6 }}>
+          <Heading size="sm" color="#263238" mb={3}>Registro de trabajo de trabajadores</Heading>
+          {activityError ? <Text color="#B42318" fontSize="sm" role="alert">{activityError}</Text> : workerActivities.length ? (
+            <Flex direction="column">
+              {workerActivities.map((activity) => (
+                <Flex key={activity.id} justify="space-between" align="flex-start" gap={4} py={3} borderBottom="1px solid #EEF1F4">
+                  <Box minW="0">
+                    <Text fontSize="sm" fontWeight="700" color="#263238">{activity.taskTitle}</Text>
+                    <Text mt={1} fontSize="xs" color="#7A8694">
+                      {activity.workerName} · {activity.workerEmail} · {new Date(activity.startedAt).toLocaleString("es-CL")}
+                      {activity.machineName ? ` · ${activity.machineName}` : ""}
+                    </Text>
+                    {activity.comment && <Text mt={1} fontSize="sm" color="#52606B">{activity.comment}</Text>}
+                  </Box>
+                  <Text fontSize="xs" color="#2F507F" flexShrink={0}>
+                    {activity.durationSeconds === undefined
+                      ? "En curso"
+                      : `${(activity.durationSeconds / 3600).toLocaleString("es-CL", { maximumFractionDigits: 2 })} h`}
+                  </Text>
+                </Flex>
+              ))}
+            </Flex>
+          ) : <Text fontSize="sm" color="#7A8694">Todavía no hay actividades registradas por trabajadores.</Text>}
+        </Card.Body>
+      </Card.Root>
     </Box>
   );
 }

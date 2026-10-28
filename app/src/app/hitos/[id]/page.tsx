@@ -32,6 +32,7 @@ import {
 } from "@chakra-ui/react";
 import type { ProjectTask, TaskStatus } from "../../../data/tasks";
 import { useProjectTasks } from "../../../data/workspace";
+import { startAppLoading } from "../../../lib/app-loading";
 
 const taskColumns: Array<{
   status: TaskStatus;
@@ -73,13 +74,20 @@ export default function MilestoneDetailPage({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState("");
+
+  const persistTasks = (nextTasks: ProjectTask[]) => {
+    void saveTasks(nextTasks)
+      .then(() => setSaveError(""))
+      .catch((reason: unknown) => setSaveError(reason instanceof Error ? reason.message : "No se pudieron guardar las actividades."));
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!form.title.trim()) return;
 
     if (editingId !== null) {
-      saveTasks(allTasks.map((task) => task.id === editingId ? { ...task, ...form, title: form.title.trim() } : task));
+      persistTasks(allTasks.map((task) => task.id === editingId ? { ...task, ...form, title: form.title.trim() } : task));
     } else {
       const now = Math.max(0, ...allTasks.map((task) => task.id)) + 1;
       const newTask: ProjectTask = {
@@ -94,7 +102,7 @@ export default function MilestoneDetailPage({
         budgetedManHours: 0,
         activityLog: [],
       };
-      saveTasks([...allTasks, newTask]);
+      persistTasks([...allTasks, newTask]);
     }
 
     setForm(emptyForm);
@@ -118,12 +126,12 @@ export default function MilestoneDetailPage({
   const moveTask = (status: TaskStatus) => {
     if (draggedTaskId === null) return;
 
-    saveTasks(allTasks.map((task) => task.id === draggedTaskId ? { ...task, status } : task));
+    persistTasks(allTasks.map((task) => task.id === draggedTaskId ? { ...task, status } : task));
     setDraggedTaskId(null);
   };
 
   const deleteTask = (id: number) => {
-    saveTasks(allTasks.filter((task) => task.id !== id));
+    persistTasks(allTasks.filter((task) => task.id !== id));
     if (editingId === id) {
       setEditingId(null);
       setForm(emptyForm);
@@ -139,6 +147,7 @@ export default function MilestoneDetailPage({
 
   return (
     <Box maxW="1600px" mx="auto" px={{ base: 4, md: 6, lg: 8 }} py={{ base: 5, md: 7 }}>
+        {saveError && <Text mb={4} color="#B42318" role="alert">{saveError}</Text>}
         <Flex align={{ base: "flex-start", md: "center" }} justify="space-between" direction={{ base: "column", md: "row" }} gap={4} mb={6}>
           <Box>
             <Link href="/hitos" style={{ textDecoration: "none" }}>
@@ -255,10 +264,12 @@ export default function MilestoneDetailPage({
                         onClick={(event) => {
                           const target = event.target as HTMLElement;
                           if (target.closest("button, a")) return;
+                          startAppLoading();
                           router.push(`/tareas/${task.id}`);
                         }}
                         onKeyDown={(event) => {
                           if (event.key === "Enter" || event.key === " ") {
+                            startAppLoading();
                             router.push(`/tareas/${task.id}`);
                           }
                         }}

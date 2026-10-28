@@ -15,6 +15,7 @@ import {
   Milestone,
   Settings,
   CalendarDays,
+  ListTodo,
   FileSpreadsheet,
   ShieldCheck,
 } from "lucide-react";
@@ -30,7 +31,6 @@ import {
 interface AppSidebarProps {
   open: boolean;
   onClose: () => void;
-  onToggle: () => void;
 }
 
 const menuItems = [
@@ -60,6 +60,11 @@ const menuItems = [
     icon: CalendarDays,
   },
   {
+    label: "Actividades",
+    href: "/actividades",
+    icon: ListTodo,
+  },
+  {
     label: "Reportes",
     href: "/reportes",
     icon: FileText,
@@ -84,40 +89,47 @@ const menuItems = [
 export default function AppSidebar({
   open,
   onClose,
-  onToggle,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const [role, setRole] = useState("");
+  const [roleReady, setRoleReady] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
       .then((response) => response.json())
       .then((data: { user?: { role?: string } | null }) => setRole(data.user?.role ?? ""))
-      .catch(() => setRole(""));
+      .catch(() => setRole(""))
+      .finally(() => setRoleReady(true));
   }, []);
-  const visibleMenuItems = role === "superadmin"
+  const visibleMenuItems = !roleReady
+    ? []
+    : role === "trabajador"
+    ? menuItems.filter((item) => ["/dashboard", "/asistencia", "/actividades"].includes(item.href))
+    : role === "superadmin"
     ? [...menuItems, { label: "Roles", href: "/roles", icon: ShieldCheck }]
     : menuItems;
 
   return (
     <>
       {/* Overlay solamente en mobile cuando se usa como panel */}
-      {open && (
-        <Box
-          display={{
-            base: open ? "block" : "none",
-            lg: "none",
-          }}
-          position="fixed"
-          inset="0"
-          bg="blackAlpha.500"
-          zIndex={998}
-          onClick={onClose}
-        />
-      )}
+      <Box
+        className="app-sidebar-overlay"
+        display={{ base: "block", lg: "none" }}
+        position="fixed"
+        inset="0"
+        bg="blackAlpha.500"
+        zIndex={998}
+        opacity={open ? 1 : 0}
+        visibility={open ? "visible" : "hidden"}
+        pointerEvents={open ? "auto" : "none"}
+        transition="opacity .38s cubic-bezier(0.22, 1, 0.36, 1), visibility .38s"
+        onClick={onClose}
+        aria-hidden={!open}
+      />
 
       {/* SIDEBAR */}
       <Box
+        className="app-sidebar"
         as="aside"
         position={{
           base: "fixed",
@@ -127,22 +139,20 @@ export default function AppSidebar({
           base: open ? "0" : "-220px",
           lg: open ? "0" : "-220px",
         }}
+        visibility={{ base: "visible", lg: open ? "visible" : "hidden" }}
+        pointerEvents={{ base: open ? "auto" : "none", lg: open ? "auto" : "none" }}
         top="0"
         bottom="0"
         zIndex={999}
         w="220px"
         flexShrink={0}
         bg="#F1F4F7"
-        transition="left .25s ease"
-        display={{
-          base: open ? "block" : "none",
-          lg: open ? "block" : "none",
-        }}
+        transition="left .38s cubic-bezier(0.22, 1, 0.36, 1), visibility .38s"
       >
         {/* HEADER SIDEBAR */}
         <Flex
           h="64px"
-          px={5}
+          px={3}
           align="center"
           justify="space-between"
         >
@@ -151,7 +161,8 @@ export default function AppSidebar({
             gap={3}
           >
             <Box
-              w="174px"
+              w={{ base: "140px", lg: "132px" }}
+              flexShrink={1}
               h="42px"
               borderRadius="10px"
               bg="#263B54"
@@ -166,10 +177,29 @@ export default function AppSidebar({
                 width={164}
                 height={34}
                 priority
-                style={{ objectFit: "contain" }}
+                style={{ width: "100%", height: "auto", objectFit: "contain", padding: "0 6px" }}
               />
             </Box>
           </Flex>
+          <IconButton
+            aria-label="Cerrar menú lateral"
+            title="Cerrar menú lateral"
+            onClick={onClose}
+            display="inline-flex"
+            flexShrink={0}
+            w={{ base: "44px", lg: "40px" }}
+            h={{ base: "44px", lg: "40px" }}
+            minW={{ base: "44px", lg: "40px" }}
+            borderRadius="12px"
+            bg="#2F507F"
+            color="white"
+            boxShadow="0 4px 12px rgba(47, 80, 127, 0.24)"
+            _hover={{ bg: "#263B54", boxShadow: "0 6px 16px rgba(47, 80, 127, 0.3)" }}
+            _active={{ transform: "scale(0.96)" }}
+            _focusVisible={{ outline: "3px solid #78C8E2", outlineOffset: "2px" }}
+          >
+            <ChevronLeft size={23} strokeWidth={2.5} />
+          </IconButton>
         </Flex>
 
         {/* MENU */}
@@ -261,37 +291,6 @@ export default function AppSidebar({
           </VStack>
         </Box>
 
-        {/* BOTÓN PARA CERRAR */}
-        <Box
-          display="block"
-          position="absolute"
-          bottom="20px"
-          right="-14px"
-          zIndex={1000}
-        >
-          <IconButton
-            aria-label="Ocultar menú"
-            onClick={onToggle}
-            size="xs"
-            w="28px"
-            h="28px"
-            minW="28px"
-            borderRadius="full"
-            bg="white"
-            border="1px solid"
-            borderColor="#E0E6ED"
-            boxShadow="0 2px 8px rgba(38, 50, 56, 0.08)"
-            color="#66727F"
-            _hover={{
-              color: "#2F507F",
-              borderColor: "#C9D6E5",
-              boxShadow:
-                "0 4px 12px rgba(38, 50, 56, 0.12)",
-            }}
-          >
-            <ChevronLeft size={15} />
-          </IconButton>
-        </Box>
       </Box>
     </>
   );

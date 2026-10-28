@@ -27,6 +27,7 @@ import {
 import type { Project } from "../../types/project";
 
 import ProgressCard from "../../components/dashboard/ProgressCard";
+import WorkerDashboard from "../../components/worker/WorkerDashboard";
 
 export default function DashboardPage() {
   /*
@@ -34,6 +35,19 @@ export default function DashboardPage() {
    * Más adelante estos datos vendrán desde Spring Boot.
    */
   const [projectName, setProjectName] = useState(initialProjects[0].name);
+  const [role, setRole] = useState("");
+  const [roleReady, setRoleReady] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("No se pudo consultar la sesión.");
+        const data = await response.json() as { user?: { role?: string } | null };
+        setRole(data.user?.role ?? "");
+      })
+      .catch(() => setRole(""))
+      .finally(() => setRoleReady(true));
+  }, []);
 
   useEffect(() => {
     const syncSelectedProject = window.setTimeout(() => {
@@ -147,6 +161,11 @@ export default function DashboardPage() {
       `Abrir información ${period}`
     );
   };
+
+  if (!roleReady) {
+    return <Box px={6} py={10}><Text color="#7A8694">Cargando dashboard...</Text></Box>;
+  }
+  if (role === "trabajador") return <WorkerDashboard />;
 
   return (
     <Box

@@ -61,7 +61,12 @@ export function canAccessPath(role: AppRole, pathname: string) {
   if (role === "superadmin" || role === "admin") return true;
   if (role === "supervisor") return normalizedPath !== "/configuracion" && !normalizedPath.startsWith("/configuracion/");
   if (normalizedPath === "/sin-acceso" || normalizedPath.startsWith("/sin-acceso/")) return true;
-  return ["/dashboard", "/tareas", "/reportes"].some(
+  if (role === "trabajador" && (
+    normalizedPath.startsWith("/api/worker/") ||
+    normalizedPath === "/api/workforce/projects" ||
+    normalizedPath.startsWith("/api/workforce/projects/")
+  )) return true;
+  return ["/dashboard", "/asistencia", "/actividades"].some(
     (route) => normalizedPath === route || normalizedPath.startsWith(`${route}/`),
   );
 }

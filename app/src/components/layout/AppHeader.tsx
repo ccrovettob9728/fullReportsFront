@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
   Bell,
+  Building2,
+  Check,
+  ChevronDown,
   LogOut,
   Menu,
-  X,
 } from "lucide-react";
 
 import {
   Box,
   Flex,
   IconButton,
-  NativeSelect,
+  Portal,
+  Select,
   Text,
+  createListCollection,
 } from "@chakra-ui/react";
 
 const notifications = [
@@ -58,6 +62,16 @@ export default function AppHeader({
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [readNotifications, setReadNotifications] = useState<number[]>([]);
+  const projectCollection = useMemo(
+    () =>
+      createListCollection({
+        items: projects.map((project) => ({
+          label: project.name,
+          value: String(project.id),
+        })),
+      }),
+    [projects],
+  );
   const unreadCount = notifications.filter(
     (notification) => notification.unread && !readNotifications.includes(notification.id),
   ).length;
@@ -111,17 +125,13 @@ export default function AppHeader({
             color="#52606B"
             flexShrink={0}
             onClick={onToggleSidebar}
-            display={{ base: "inline-flex", lg: "inline-flex" }}
+            display={{ base: "inline-flex", lg: sidebarOpen ? "none" : "inline-flex" }}
             _hover={{
               bg: "#E9EEF3",
               color: "#2F507F",
             }}
           >
-            {sidebarOpen ? (
-              <X size={19} />
-            ) : (
-              <Menu size={19} />
-            )}
+            <Menu size={19} />
           </IconButton>
 
           {/* OBRA */}
@@ -145,47 +155,109 @@ export default function AppHeader({
               Obra
             </Text>
 
-            <Box
+            {user?.role === "trabajador" ? (
+              <Text
+                maxW={{ base: "190px", sm: "260px", md: "360px" }}
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+                fontSize="sm"
+                fontWeight="600"
+                color="#263238"
+              >
+                {projects[0]?.name ?? "Sin obra asignada"}
+              </Text>
+            ) : <Box
               minW="0"
+              w={{ base: "full", sm: "auto" }}
               maxW={{
                 base: "190px",
                 sm: "260px",
                 md: "360px",
                 lg: "450px",
               }}
+              position="relative"
+              border="1px solid #DCE3EA"
+              borderRadius="10px"
+              bg="white"
+              boxShadow="0 2px 6px rgba(38, 50, 56, 0.04)"
+              transition="border-color .2s ease, box-shadow .2s ease"
+              _hover={{
+                borderColor: "#B9C9DA",
+                boxShadow: "0 4px 12px rgba(38, 50, 56, 0.08)",
+              }}
             >
-              <NativeSelect.Root size="sm">
-                <NativeSelect.Field
-                  value={selectedProjectId}
-                  onChange={(event) =>
-                    onProjectChange(
-                      Number(event.target.value)
-                    )
-                  }
-                  border="none"
-                  bg="transparent"
-                  borderRadius="8px"
-                  color="#36434F"
-                  fontSize="sm"
-                  fontWeight="600"
-                  px={1}
-                  _focus={{
-                    boxShadow: "none",
-                  }}
-                >
-                  {projects.map((project) => (
-                    <option
-                      key={project.id}
-                      value={project.id}
+              <Select.Root
+                collection={projectCollection}
+                value={[String(selectedProjectId)]}
+                onValueChange={(details) => {
+                  const projectId = Number(details.value[0]);
+                  if (Number.isFinite(projectId)) onProjectChange(projectId);
+                }}
+                positioning={{ sameWidth: true, gutter: 6 }}
+                size="sm"
+              >
+                <Select.HiddenSelect />
+                <Select.Control>
+                  <Select.Trigger
+                    w="full"
+                    h="40px"
+                    display="flex"
+                    alignItems="center"
+                    gap={2}
+                    px={3}
+                    border="none"
+                    bg="transparent"
+                    color="#263238"
+                    fontSize="sm"
+                    fontWeight="600"
+                    textAlign="left"
+                    _focusVisible={{
+                      outline: "none",
+                      boxShadow: "0 0 0 2px #2F507F",
+                    }}
+                  >
+                    <Building2 size={16} color="#2F507F" />
+                    <Select.ValueText placeholder="Selecciona una obra" />
+                    <Box ml="auto" color="#2F507F">
+                      <ChevronDown size={16} />
+                    </Box>
+                  </Select.Trigger>
+                </Select.Control>
+                <Portal>
+                  <Select.Positioner>
+                    <Select.Content
+                      p={1.5}
+                      border="1px solid #E1E8F0"
+                      borderRadius="12px"
+                      bg="white"
+                      boxShadow="0 14px 36px rgba(38, 50, 56, 0.16)"
+                      zIndex={1300}
                     >
-                      {project.name}
-                    </option>
-                  ))}
-                </NativeSelect.Field>
-
-                <NativeSelect.Indicator />
-              </NativeSelect.Root>
-            </Box>
+                      {projectCollection.items.map((project) => (
+                        <Select.Item
+                          key={project.value}
+                          item={project}
+                          px={3}
+                          py={2.5}
+                          borderRadius="8px"
+                          color="#36434F"
+                          cursor="pointer"
+                          transition="background .15s ease, color .15s ease"
+                          _highlighted={{ bg: "#EEF4FB", color: "#2F507F" }}
+                          _selected={{ bg: "#E8EEF7", color: "#2F507F", fontWeight: "700" }}
+                        >
+                          <Select.ItemText>{project.label}</Select.ItemText>
+                          <Select.ItemIndicator color="#2F507F">
+                            <Check size={16} />
+                          </Select.ItemIndicator>
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Positioner>
+                </Portal>
+              </Select.Root>
+            </Box>}
           </Flex>
         </Flex>
 
@@ -196,7 +268,7 @@ export default function AppHeader({
           flexShrink={0}
         >
           {/* NOTIFICACIONES */}
-          <Box position="relative">
+          <Box position="relative" display={user?.role === "trabajador" ? "none" : "block"}>
             <IconButton
               aria-label="Notificaciones"
               variant="ghost"

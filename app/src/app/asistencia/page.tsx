@@ -5,6 +5,7 @@ import readXlsxFile from "read-excel-file/browser";
 import { CalendarDays, FileUp, Search, Users } from "lucide-react";
 import { Box, Card, Flex, Heading, Input, Table, Text } from "@chakra-ui/react";
 import { readAttendance, saveAttendance, type AttendanceRecord, useProjectTasks } from "../../data/workspace";
+import WorkerAttendance from "../../components/worker/WorkerAttendance";
 
 function normalize(value: unknown) {
   return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -35,6 +36,10 @@ export default function AttendancePage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [message, setMessage] = useState("");
+  const [role, setRole] = useState("");
+  const [roleReady, setRoleReady] = useState(false);
+  const [workforceRecords, setWorkforceRecords] = useState<AttendanceRecord[]>([]);
+  const [workforceError, setWorkforceError] = useState("");
   const projectName = projects.find((project) => project.id === selectedProjectId)?.name ?? "Obra seleccionada";
 
   useEffect(() => {
@@ -42,13 +47,66 @@ export default function AttendancePage() {
     return () => window.clearTimeout(timeout);
   }, []);
 
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("No se pudo consultar la sesión.");
+        const data = await response.json() as { user?: { role?: string } | null };
+        setRole(data.user?.role ?? "");
+      })
+      .catch(() => setRole(""))
+      .finally(() => setRoleReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!roleReady || !["admin", "superadmin", "supervisor"].includes(role) || !selectedProjectId) return;
+    let active = true;
+    const loadWorkforceShifts = async () => {
+      try {
+        const response = await fetch(`/api/workforce/projects/${selectedProjectId}/shifts`, { cache: "no-store" });
+        const data = await response.json() as { shifts?: Array<{
+          id: string;
+          projectId: number;
+          workerEmail: string;
+          workerName: string;
+          startedAt: string;
+          endedAt: string;
+          durationSeconds: number;
+        }>; error?: string };
+        if (!response.ok) throw new Error(data.error || "No se pudo consultar la asistencia registrada en FullReports.");
+        if (active) {
+          setWorkforceRecords((data.shifts ?? []).map((shift) => {
+            const startedAt = new Date(shift.startedAt);
+            const date = `${startedAt.getFullYear()}-${String(startedAt.getMonth() + 1).padStart(2, "0")}-${String(startedAt.getDate()).padStart(2, "0")}`;
+            return {
+              id: shift.id,
+              projectId: shift.projectId,
+              employeeId: shift.workerEmail,
+              name: shift.workerName,
+              date,
+              status: shift.endedAt ? "Registrada" : "En curso",
+              hours: Math.round((shift.durationSeconds / 3600) * 100) / 100,
+              source: "Turno FullReports",
+              importedAt: shift.endedAt || shift.startedAt,
+            };
+          }));
+          setWorkforceError("");
+        }
+      } catch (reason) {
+        if (active) setWorkforceError(reason instanceof Error ? reason.message : "No se pudo consultar la asistencia.");
+      }
+    };
+    void loadWorkforceShifts();
+    return () => { active = false; };
+  }, [roleReady, role, selectedProjectId]);
+
   const filteredRecords = useMemo(() => {
     const search = query.trim().toLowerCase();
-    return records.filter((record) => record.projectId === selectedProjectId).filter((record) => {
+    return [...workforceRecords, ...records].filter((record) => record.projectId === selectedProjectId).filter((record) => {
       const matchesSearch = !search || `${record.name} ${record.employeeId} ${record.status}`.toLowerCase().includes(search);
       return matchesSearch && (!fromDate || record.date >= fromDate) && (!toDate || record.date <= toDate);
     }).sort((left, right) => right.date.localeCompare(left.date));
-  }, [records, query, fromDate, toDate, selectedProjectId]);
+  }, [records, workforceRecords, query, fromDate, toDate, selectedProjectId]);
 
   const importAttendance = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -94,6 +152,11 @@ export default function AttendancePage() {
     event.target.value = "";
   };
 
+  if (!roleReady) {
+    return <Box px={6} py={10}><Text color="#7A8694">Cargando asistencia...</Text></Box>;
+  }
+  if (role === "trabajador") return <WorkerAttendance />;
+
   return (
     <Box maxW="1400px" mx="auto" px={{ base: 4, md: 6, lg: 8 }} py={{ base: 5, md: 7 }}>
       <Box mb={6}>
@@ -108,6 +171,7 @@ export default function AttendancePage() {
           <Text fontSize="sm" color="#7A8694" mb={4}>Formato XLSX con Fecha, Nombre, RUT/ID, Estado y Horas o Entrada/Salida.</Text>
           <Input type="file" accept=".xlsx" onChange={importAttendance} aria-label="Seleccionar Excel de asistencia" />
           {message && <Text mt={3} fontSize="sm" color="#2F507F" role="status">{message}</Text>}
+          {workforceError && <Text mt={3} fontSize="sm" color="#B42318" role="alert">{workforceError}</Text>}
         </Card.Body>
       </Card.Root>
 
